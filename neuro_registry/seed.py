@@ -62,7 +62,7 @@ SEED_ROOTS = [
 # ---------------------------------------------------------------------------
 
 def now_iso() -> str:
-    return datetime.datetime.utcnow().isoformat() + "Z"
+    return datetime.datetime.now(datetime.UTC).isoformat()
 
 def make_uid() -> str:
     return str(uuid.uuid4())
@@ -190,20 +190,29 @@ def seed(db_path: str = "./registry.lbug",
     class_uid: dict[str, str] = {}   # short_name → uid
 
     # Pass 1: insert all class nodes
+    # LadybugDB requires uid (PK) in the MATCH clause of MERGE, so we do a
+    # manual existence check + CREATE instead.
     for name, info in classes.items():
         b = make_base(name, iri=info["iri"])
         class_uid[name] = b["uid"]
         if dry_run:
             continue
+        exists = conn.execute(
+            "MATCH (n:SchemaClass {iri: $iri}) RETURN n.uid LIMIT 1",
+            {"iri": info["iri"]}
+        ).has_next()
+        if exists:
+            continue
         conn.execute("""
-            MERGE (n:SchemaClass {iri: $iri})
-            ON CREATE SET
-                n.uid        = $uid,
-                n.uri        = $uri,
-                n.version    = $version,
-                n.created_at = $created_at,
-                n.name       = $name,
-                n.definition = $definition
+            CREATE (:SchemaClass {
+                uid:        $uid,
+                iri:        $iri,
+                uri:        $uri,
+                version:    $version,
+                created_at: $created_at,
+                name:       $name,
+                definition: $definition
+            })
         """, {**b,
               "name":       info["label"],
               "definition": info["comment"]})
@@ -235,28 +244,33 @@ def seed(db_path: str = "./registry.lbug",
             if dry_run:
                 continue
 
-            # Upsert the property node (one node per schema.org property IRI)
+            # Insert the property node once per unique IRI
             if prop_key not in seen_props:
                 seen_props.add(prop_key)
                 b = make_base(prop["name"], iri=prop["iri"])
-                # Use first range as canonical range_uri
                 range_uri = prop["ranges"][0] if prop["ranges"] else ""
-                conn.execute("""
-                    MERGE (p:SchemaProperty {iri: $iri})
-                    ON CREATE SET
-                        p.uid        = $uid,
-                        p.uri        = $uri,
-                        p.version    = $version,
-                        p.created_at = $created_at,
-                        p.name       = $name,
-                        p.definition = $definition,
-                        p.datatype   = $datatype,
-                        p.range_uri  = $range_uri
-                """, {**b,
-                      "name":       prop["label"],
-                      "definition": prop["comment"],
-                      "datatype":   "xsd:string",
-                      "range_uri":  range_uri})
+                exists = conn.execute(
+                    "MATCH (p:SchemaProperty {iri: $iri}) RETURN p.uid LIMIT 1",
+                    {"iri": prop["iri"]}
+                ).has_next()
+                if not exists:
+                    conn.execute("""
+                        CREATE (:SchemaProperty {
+                            uid:        $uid,
+                            iri:        $iri,
+                            uri:        $uri,
+                            version:    $version,
+                            created_at: $created_at,
+                            name:       $name,
+                            definition: $definition,
+                            datatype:   $datatype,
+                            range_uri:  $range_uri
+                        })
+                    """, {**b,
+                          "name":       prop["label"],
+                          "definition": prop["comment"],
+                          "datatype":   "xsd:string",
+                          "range_uri":  range_uri})
 
             # Link class → property
             conn.execute("""

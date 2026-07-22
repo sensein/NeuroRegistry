@@ -1,110 +1,101 @@
 # SenseIn Schema Registry
 
-Decentralized schema registry backed by **LadybugDB** (embedded property graph) + **FastAPI**.  
-No Docker. No server. Just `pip install` and run.
+Decentralised schema registry. Backed by LadybugDB (embedded property graph)
+and served over HTTP via FastAPI.
 
-## Install
+## Quick start
 
 ```bash
 pip install -r requirements.txt
-# or manually:
-pip install ladybug fastapi uvicorn rdflib httpx
-```
-
-## Run
-
-```bash
 uvicorn schema_registry:app --reload
 ```
 
-First startup fetches and loads schema.org (~10 s). Persists to `./registry.lbug`.  
-API docs: **http://localhost:8000/docs**
+Docs at `http://localhost:8000/docs`. Database persists to `./registry.lbug`.
+No server, no Docker.
 
 ---
 
-## Why LadybugDB instead of OxiGraph?
+## Node model
 
-| | OxiGraph (old) | LadybugDB (new) |
-|---|---|---|
-| Model | RDF quads | Property Graph |
-| Query | SPARQL | Cypher |
-| Install | `pip install pyoxigraph` | `pip install ladybug` |
-| Embedded | ✅ | ✅ |
-| SPARQL | ✅ native | ❌ |
-| RDF ingest | Native Turtle/JSON-LD | rdflib parse → Cypher insert |
-| Analytics | Limited | Columnar, vectorized |
-| Graph algorithms | ❌ | ✅ (PageRank, shortest path, etc.) |
+All nodes share a **base identity** (conceptual inheritance — fields are
+repeated on each table since LadybugDB does not support table inheritance):
 
-All features are preserved. RDF ingestion still works — rdflib parses Turtle/JSON-LD, then the
-triples are written into LadybugDB as `(SchemaNode)-[:TRIPLE]->(SchemaNode)` relationships.
+| Field | Description |
+|---|---|
+| `uid` | UUID — LadybugDB primary key |
+| `iri` | Stable concept identifier (never changes across versions) |
+| `uri` | Versioned registry URI — `registry.sensein.io/obj/{id}/v/{semver}` |
+| `version` | Semver string |
+| `created_at` | ISO-8601 timestamp |
+
+### SchemaClass
+`name`, `definition`
+
+Relationships: `SUBCLASS_OF`, `MIXIN`, `SKOS_BROADER`, `SKOS_RELATED`,
+`HAS_PROPERTY`, `PRIOR_VERSION`, `PROV_GENERATED`, `FROM_SOURCE`
+
+### SchemaProperty
+`name`, `definition`, `datatype`, `range_uri`
+
+Relationships: `HAS_PROPERTY` (from SchemaClass), `PRIOR_VERSION_P`,
+`PROV_GENERATED_P`
+
+### SchemaRule
+Validation constraints live here — not on SchemaProperty.
+
+`name`, `rule_spec`, `units`, `min_val`, `max_val`, `pattern`,
+`multivalued`, `required`
+
+Relationships: `APPLIES_TO` → SchemaClass, `PRIOR_VERSION_R`,
+`PROV_GENERATED_R`
+
+### SchemaTransform
+`name`, `spec`
+
+### SchemaSource
+`label`, `mime_type`
+
+### SchemaActivity
+PROV-O activity. `activity`, `agent`, `started_at`
+
+---
+
+## Versioning
+
+Append-only. A version bump:
+1. Creates a new node (new `uid`, new `uri`, same `iri`)
+2. Links new → old via `PRIOR_VERSION`
+3. Records a `SchemaActivity`
+
+Nothing is ever deleted.
 
 ---
 
 ## Endpoints
 
 | Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Node + triple counts |
+|---|---|---|
+| GET | `/health` | Node counts per type |
 | GET | `/schema/classes` | List all classes |
-| GET | `/schema/class/{id}` | Get class (all versions) |
+| GET | `/schema/class/{id}` | All versions of a class |
+| GET | `/schema/class/{id}/properties` | Properties on a class |
 | POST | `/schema/class` | Create a class |
-| GET | `/schema/property/{id}` | Get a property |
+| POST | `/schema/class/{id}/bump` | Bump version |
+| GET | `/schema/property/{id}` | All versions of a property |
 | POST | `/schema/property` | Create a property |
+| GET | `/schema/rule/{id}` | Get a rule |
 | POST | `/schema/rule` | Create a rule |
-| POST | `/ingest` | Ingest RDF (Turtle or JSON-LD) |
-| POST | `/schema/update/{id}` | Bump version (append-only) |
-| GET | `/provenance/{id}` | PROV-O history |
-| GET | `/schema/relations/{uri}` | All triples for a node |
-| GET | `/distance/{id1}/{id2}` | Distance stub |
+| GET | `/schema/transform/{id}` | Get a transform |
+| POST | `/schema/transform` | Create a transform |
+| GET | `/provenance/class/{id}` | Provenance history |
+| GET | `/distance/{id1}/{id2}` | Distance stub (TBD) |
 
 ---
 
-## Data Model
+## Open questions
 
-Triples are stored as:
-```
-(:SchemaNode)-[:TRIPLE {predicate: "rdfs:subClassOf"}]->(:SchemaNode)
-(:SchemaNode)-[:TRIPLE_LIT {predicate: "rdfs:label"}]->(:Literal {value: "Person"})
-```
-
-Versions are **append-only** — bumping creates a new URI and links via `[:PRIOR_VERSION]`.  
-Provenance uses `[:PROV_ACTIVITY {activity, agent, started_at}]` edges.
-
-### Class fields
-- `uri` — versioned URI: `registry.sensein.io/obj/{id}/v/{semver}`
-- `object_id` — short id, e.g. "Person"
-- `name`, `definition`, `version`, `created_at`
-- Relations: `rdfs:subClassOf`, `reg:mixin`, `skos:broader`, `skos:related`
-
-### Property fields
-- Same core fields + domain class link (`rdfs:domain`)
-- Constraints encoded in `definition`: dataType, units, min, max, pattern, multivalued, required
-
-### Rule fields
-- `rule_spec` stored as `definition` (Python expression or callable reference)
-- `reg:appliesTo` edges to target object URIs
-
----
-
-## Ingest example
-
-```bash
-curl -X POST http://localhost:8000/ingest \
-  -H "Content-Type: application/json" \
-  -d '{
-    "rdf_content": "@prefix ex: <https://example.org/> .\nex:Plant a <http://www.w3.org/2002/07/owl#Class> ;\n  <http://www.w3.org/2000/01/rdf-schema#label> \"Plant\" .",
-    "mime_type": "text/turtle",
-    "source_label": "bbqs-v1",
-    "prov_agent": "researcher@sensein.io"
-  }'
-```
-
----
-
-## Next steps
-- BBQS schema ingestion (second RDF source)
-- Users / Org / Roles node tables
-- VOL sets (vocabulary/ontology/lookup)
-- Transform objects
-- Distance function (scientists to spec semantic + structural metric)
-- LadybugDB Explorer UI for graph visualization
+- **VOL sets** — design TBD
+- **Users / Org / Roles** — access control layer TBD
+- **Distance function** — semantic + structural metric, scientists to spec
+- **Rule spec format** — Python callable string vs SHACL vs JSON expression
+- **Transform spec format** — TBD with team

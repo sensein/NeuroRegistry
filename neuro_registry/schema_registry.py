@@ -1,28 +1,42 @@
 """
-Schema Registry Service — LadybugDB + FastAPI
-----------------------------------------------
-Property graph backend (LadybugDB / Cypher) for a decentralised schema registry.
-RDF triples are modelled as   (:SchemaNode)-[:PREDICATE {value}]->(:SchemaNode)
-so the graph stays semantically triple-shaped while benefiting from Ladybug's
-columnar, embedded store (no server, no Docker).
+SenseIn Schema Registry — LadybugDB + FastAPI
+---------------------------------------------
 
-Objects:  Class · Property · Rule  — all versioned + PROV-O provenance.
-Ingest:   accepts Turtle or JSON-LD (parsed via rdflib → inserted as Cypher).
-Seed:     schema.org subset loaded on first startup.
+Node hierarchy (conceptual base → specialised):
 
-Install:
-    pip install ladybug fastapi uvicorn rdflib httpx
+  BaseNode  (uid, iri, uri, version, created_at)
+    ├── SchemaClass      (name, definition)
+    ├── SchemaProperty   (name, definition, datatype, range_uri)
+    ├── SchemaRule       (name, rule_spec, units, min_val, max_val,
+    │                     pattern, multivalued, required)
+    ├── SchemaTransform  (name, spec)
+    ├── SchemaSource     (label, mime_type)
+    └── SchemaActivity   (activity, agent, started_at)
 
-Run:
-    uvicorn schema_registry:app --reload
-    Docs → http://localhost:8000/docs
+LadybugDB does not support table inheritance, so the shared BaseNode
+fields are repeated on each table. A helper (make_base) keeps this DRY.
+
+Relationships:
+  PRIOR_VERSION   SchemaClass      → SchemaClass
+  PRIOR_VERSION_P SchemaProperty   → SchemaProperty
+  HAS_PROPERTY    SchemaClass      → SchemaProperty
+  APPLIES_TO      SchemaRule       → SchemaClass
+  SUBCLASS_OF     SchemaClass      → SchemaClass
+  MIXIN           SchemaClass      → SchemaClass
+  SKOS_BROADER    SchemaClass      → SchemaClass
+  SKOS_RELATED    SchemaClass      → SchemaClass
+  PROV_GENERATED  SchemaClass      → SchemaActivity
+  PROV_GENERATED_P SchemaProperty  → SchemaActivity
+  PROV_GENERATED_R SchemaRule      → SchemaActivity
+  FROM_SOURCE     SchemaClass      → SchemaSource
+
+Install:  pip install -r requirements.txt
+Run:      uvicorn schema_registry:app --reload
+Docs:     http://localhost:8000/docs
 """
 
 from __future__ import annotations
-
-import uuid
-import datetime
-import httpx
+import uuid, datetime
 from typing import Optional
 
 import ladybug as lb
@@ -30,61 +44,108 @@ from fastapi import FastAPI, HTTPException, Body
 from pydantic import BaseModel
 
 # ---------------------------------------------------------------------------
-# Database — file-backed, persists between restarts
+# Database
 # ---------------------------------------------------------------------------
 
-DB_PATH = "./registry.lbug"
-db   = lb.Database(DB_PATH)
+db   = lb.Database("./registry.lbug")
 conn = lb.Connection(db)
 
 # ---------------------------------------------------------------------------
-# Schema bootstrap — node/rel tables created once
+# DDL
 # ---------------------------------------------------------------------------
 
-DDL = """
-CREATE NODE TABLE IF NOT EXISTS SchemaNode (
-    uri        STRING PRIMARY KEY,
-    kind       STRING,          -- Class | Property | Rule | Transform | Source | Activity
-    object_id  STRING,          -- short human id, e.g. "Person"
-    name       STRING,
-    definition STRING,
-    version    STRING,
-    created_at STRING
-);
+# Shared base fields on every table:
+#   uid STRING PRIMARY KEY, iri STRING, uri STRING,
+#   version STRING, created_at STRING
 
-CREATE NODE TABLE IF NOT EXISTS Literal (
-    id    STRING PRIMARY KEY,   -- uuid
-    value STRING,
-    dtype STRING
-);
+DDL = [
+    """CREATE NODE TABLE IF NOT EXISTS SchemaClass (
+        uid        STRING PRIMARY KEY,
+        iri        STRING,
+        uri        STRING,
+        version    STRING,
+        created_at STRING,
+        name       STRING,
+        definition STRING
+    )""",
 
-CREATE REL TABLE IF NOT EXISTS TRIPLE (
-    FROM SchemaNode TO SchemaNode,
-    predicate STRING
-);
+    """CREATE NODE TABLE IF NOT EXISTS SchemaProperty (
+        uid        STRING PRIMARY KEY,
+        iri        STRING,
+        uri        STRING,
+        version    STRING,
+        created_at STRING,
+        name       STRING,
+        definition STRING,
+        datatype   STRING,
+        range_uri  STRING
+    )""",
 
-CREATE REL TABLE IF NOT EXISTS TRIPLE_LIT (
-    FROM SchemaNode TO Literal,
-    predicate STRING
-);
+    # Validation constraints live here — they ARE rules, not property metadata
+    """CREATE NODE TABLE IF NOT EXISTS SchemaRule (
+        uid         STRING PRIMARY KEY,
+        iri         STRING,
+        uri         STRING,
+        version     STRING,
+        created_at  STRING,
+        name        STRING,
+        rule_spec   STRING,
+        units       STRING,
+        min_val     STRING,
+        max_val     STRING,
+        pattern     STRING,
+        multivalued BOOLEAN,
+        required    BOOLEAN
+    )""",
 
-CREATE REL TABLE IF NOT EXISTS PRIOR_VERSION (
-    FROM SchemaNode TO SchemaNode
-);
+    """CREATE NODE TABLE IF NOT EXISTS SchemaTransform (
+        uid        STRING PRIMARY KEY,
+        iri        STRING,
+        uri        STRING,
+        version    STRING,
+        created_at STRING,
+        name       STRING,
+        spec       STRING
+    )""",
 
-CREATE REL TABLE IF NOT EXISTS PROV_ACTIVITY (
-    FROM SchemaNode TO SchemaNode,
-    activity   STRING,
-    agent      STRING,
-    started_at STRING
-);
-"""
+    """CREATE NODE TABLE IF NOT EXISTS SchemaSource (
+        uid        STRING PRIMARY KEY,
+        iri        STRING,
+        uri        STRING,
+        version    STRING,
+        created_at STRING,
+        label      STRING,
+        mime_type  STRING
+    )""",
 
-for stmt in DDL.strip().split(";"):
-    s = stmt.strip()
-    if s:
-        conn.execute(s)
+    """CREATE NODE TABLE IF NOT EXISTS SchemaActivity (
+        uid        STRING PRIMARY KEY,
+        iri        STRING,
+        uri        STRING,
+        version    STRING,
+        created_at STRING,
+        activity   STRING,
+        agent      STRING,
+        started_at STRING
+    )""",
 
+    "CREATE REL TABLE IF NOT EXISTS PRIOR_VERSION    (FROM SchemaClass TO SchemaClass)",
+    "CREATE REL TABLE IF NOT EXISTS PRIOR_VERSION_P  (FROM SchemaProperty TO SchemaProperty)",
+    "CREATE REL TABLE IF NOT EXISTS PRIOR_VERSION_R  (FROM SchemaRule TO SchemaRule)",
+    "CREATE REL TABLE IF NOT EXISTS HAS_PROPERTY     (FROM SchemaClass TO SchemaProperty)",
+    "CREATE REL TABLE IF NOT EXISTS APPLIES_TO       (FROM SchemaRule TO SchemaClass)",
+    "CREATE REL TABLE IF NOT EXISTS SUBCLASS_OF      (FROM SchemaClass TO SchemaClass)",
+    "CREATE REL TABLE IF NOT EXISTS MIXIN            (FROM SchemaClass TO SchemaClass)",
+    "CREATE REL TABLE IF NOT EXISTS SKOS_BROADER     (FROM SchemaClass TO SchemaClass)",
+    "CREATE REL TABLE IF NOT EXISTS SKOS_RELATED     (FROM SchemaClass TO SchemaClass)",
+    "CREATE REL TABLE IF NOT EXISTS PROV_GENERATED   (FROM SchemaClass TO SchemaActivity)",
+    "CREATE REL TABLE IF NOT EXISTS PROV_GENERATED_P (FROM SchemaProperty TO SchemaActivity)",
+    "CREATE REL TABLE IF NOT EXISTS PROV_GENERATED_R (FROM SchemaRule TO SchemaActivity)",
+    "CREATE REL TABLE IF NOT EXISTS FROM_SOURCE      (FROM SchemaClass TO SchemaSource)",
+]
+
+for stmt in DDL:
+    conn.execute(stmt)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -95,99 +156,52 @@ REG = "https://registry.sensein.io/"
 def now_iso() -> str:
     return datetime.datetime.utcnow().isoformat() + "Z"
 
+def make_uid() -> str:
+    return str(uuid.uuid4())
+
 def make_uri(object_id: str, version: str) -> str:
     return f"{REG}obj/{object_id}/v/{version}"
+
+def make_iri(object_id: str) -> str:
+    return f"{REG}obj/{object_id}"
 
 def bump_version(ver: str) -> str:
     parts = ver.split(".")
     parts[-1] = str(int(parts[-1]) + 1)
     return ".".join(parts)
 
-def upsert_node(uri: str, kind: str, object_id: str = "",
-                name: str = "", definition: str = "",
-                version: str = "", created_at: str = "") -> None:
+def make_base(object_id: str, version: str, iri: str | None = None) -> dict:
+    """Return the shared BaseNode fields as a dict."""
+    return {
+        "uid":        make_uid(),
+        "iri":        iri or make_iri(object_id),
+        "uri":        make_uri(object_id, version),
+        "version":    version,
+        "created_at": now_iso(),
+    }
+
+def record_activity(entity_uid: str, table: str,
+                    activity: str, agent: str = "system") -> None:
+    b = make_base("activity/" + entity_uid, "1.0.0")
+    b["activity"]   = activity
+    b["agent"]      = agent
+    b["started_at"] = b["created_at"]
     conn.execute("""
-        MERGE (n:SchemaNode {uri: $uri})
-        ON CREATE SET n.kind=$kind, n.object_id=$oid, n.name=$name,
-                      n.definition=$def, n.version=$ver, n.created_at=$cat
-        ON MATCH  SET n.kind=$kind, n.object_id=$oid, n.name=$name,
-                      n.definition=$def, n.version=$ver
-    """, {"uri": uri, "kind": kind, "oid": object_id, "name": name,
-          "def": definition, "ver": version, "cat": created_at or now_iso()})
+        CREATE (:SchemaActivity {
+            uid: $uid, iri: $iri, uri: $uri,
+            version: $version, created_at: $created_at,
+            activity: $activity, agent: $agent, started_at: $started_at
+        })
+    """, b)
 
-def add_triple(subj_uri: str, predicate: str, obj_uri: str) -> None:
-    conn.execute("""
-        MATCH (s:SchemaNode {uri: $s}), (o:SchemaNode {uri: $o})
-        MERGE (s)-[:TRIPLE {predicate: $p}]->(o)
-    """, {"s": subj_uri, "p": predicate, "o": obj_uri})
-
-def add_literal(subj_uri: str, predicate: str, value: str, dtype: str = "xsd:string") -> None:
-    lit_id = str(uuid.uuid4())
-    conn.execute("CREATE (l:Literal {id: $id, value: $val, dtype: $dt})",
-                 {"id": lit_id, "val": value, "dt": dtype})
-    conn.execute("""
-        MATCH (s:SchemaNode {uri: $s}), (l:Literal {id: $lid})
-        CREATE (s)-[:TRIPLE_LIT {predicate: $p}]->(l)
-    """, {"s": subj_uri, "p": predicate, "lid": lit_id})
-
-def record_provenance(entity_uri: str, activity: str, agent: str = "system") -> None:
-    act_uri = REG + "activity/" + str(uuid.uuid4())
-    upsert_node(act_uri, "Activity", created_at=now_iso())
-    conn.execute("""
-        MATCH (e:SchemaNode {uri: $e}), (a:SchemaNode {uri: $a})
-        CREATE (e)-[:PROV_ACTIVITY {activity: $act, agent: $ag, started_at: $t}]->(a)
-    """, {"e": entity_uri, "a": act_uri, "act": activity, "ag": agent, "t": now_iso()})
-
-
-# ---------------------------------------------------------------------------
-# Schema.org seed
-# ---------------------------------------------------------------------------
-
-SCHEMA_ORG_JSONLD = "https://schema.org/version/latest/schemaorg-current-https.jsonld"
-
-def seed_schema_org() -> None:
-    result = conn.execute(
-        "MATCH (n:SchemaNode {uri: $uri}) RETURN n.uri",
-        {"uri": REG + "seed/schemaorg"}
-    )
-    if result.has_next():
-        print("[seed] schema.org already loaded, skipping.")
-        return
-
-    print("[seed] Fetching schema.org JSON-LD … (~10 s)")
-    try:
-        import rdflib
-        resp = httpx.get(SCHEMA_ORG_JSONLD, timeout=30, follow_redirects=True)
-        resp.raise_for_status()
-        g = rdflib.Graph()
-        g.parse(data=resp.text, format="json-ld")
-
-        RDF  = rdflib.RDF
-        RDFS = rdflib.RDFS
-        OWL  = rdflib.OWL
-
-        # Only load OWL Classes and their labels/comments — keeps it manageable
-        inserted = 0
-        for subj in g.subjects(RDF.type, OWL.Class):
-            uri_str = str(subj)
-            label   = str(next(g.objects(subj, RDFS.label),   ""))
-            comment = str(next(g.objects(subj, RDFS.comment), ""))
-            short_id = uri_str.split("/")[-1].split("#")[-1]
-            upsert_node(uri_str, "Class", short_id, label, comment, "1.0.0")
-            # subClassOf relations
-            for parent in g.objects(subj, RDFS.subClassOf):
-                parent_str = str(parent)
-                upsert_node(parent_str, "Class")
-                add_triple(uri_str, "rdfs:subClassOf", parent_str)
-            inserted += 1
-
-        # Mark seed complete
-        upsert_node(REG + "seed/schemaorg", "Source", "seed/schemaorg",
-                    "schema.org seed", "", "1.0.0")
-        record_provenance(REG + "seed/schemaorg", "Seeded from schema.org")
-        print(f"[seed] Loaded {inserted} schema.org classes into LadybugDB")
-    except Exception as e:
-        print(f"[seed] WARNING: could not load schema.org — {e}")
+    rel = {"SchemaClass":    "PROV_GENERATED",
+           "SchemaProperty": "PROV_GENERATED_P",
+           "SchemaRule":     "PROV_GENERATED_R"}.get(table)
+    if rel:
+        conn.execute(f"""
+            MATCH (e:{table} {{uid: $euid}}), (a:SchemaActivity {{uid: $auid}})
+            CREATE (e)-[:{rel}]->(a)
+        """, {"euid": entity_uid, "auid": b["uid"]})
 
 
 # ---------------------------------------------------------------------------
@@ -196,269 +210,290 @@ def seed_schema_org() -> None:
 
 app = FastAPI(
     title="SenseIn Schema Registry",
-    description="Decentralised schema registry — Classes · Properties · Rules · versioning · PROV-O. "
-                "Backed by LadybugDB (embedded property graph, Cypher queries).",
-    version="0.2.0",
+    version="0.4.0",
+    description=(
+        "Schema registry backed by LadybugDB. "
+        "Every node carries uid · iri · uri · version · created_at."
+    ),
 )
 
-@app.on_event("startup")
-async def startup():
-    seed_schema_org()
-
-
-# ---- Pydantic models -------------------------------------------------------
+# ---- Pydantic request models -----------------------------------------------
 
 class ClassCreate(BaseModel):
-    id: str
+    object_id: str
     name: str
     definition: str
+    iri: Optional[str] = None
     version: str = "1.0.0"
-    inherit_from: Optional[str] = None   # URI of parent class
-    mixin: Optional[list[str]] = None
-    skos_broader: Optional[str] = None
-    skos_related: Optional[str] = None
+    inherit_from_iri: Optional[str] = None
+    mixin_iris: Optional[list[str]] = None
+    skos_broader_iri: Optional[str] = None
+    skos_related_iri: Optional[str] = None
     prov_agent: str = "anonymous"
 
 class PropertyCreate(BaseModel):
-    id: str
+    object_id: str
     name: str
     definition: str
-    domain_class_uri: str
-    data_type: str = "xsd:string"
-    units: Optional[str] = None
-    min_value: Optional[str] = None
-    max_value: Optional[str] = None
-    pattern: Optional[str] = None
-    multivalued: bool = False
-    required: bool = False
+    domain_class_iri: str
+    iri: Optional[str] = None
+    datatype: str = "xsd:string"
+    range_uri: Optional[str] = None
     version: str = "1.0.0"
     prov_agent: str = "anonymous"
 
 class RuleCreate(BaseModel):
-    id: str
-    rule_spec: str               # Python expression / callable ref stored as literal
-    applies_to: list[str]        # list of object URIs
+    object_id: str
+    name: str
+    rule_spec: str
+    applies_to_iris: list[str]
+    iri: Optional[str] = None
     version: str = "1.0.0"
+    units: Optional[str] = None
+    min_val: Optional[str] = None
+    max_val: Optional[str] = None
+    pattern: Optional[str] = None
+    multivalued: bool = False
+    required: bool = False
     prov_agent: str = "anonymous"
 
-class IngestRDF(BaseModel):
-    rdf_content: str
-    mime_type: str = "text/turtle"   # or application/ld+json
-    source_label: str = "external"
-    prov_agent: str = "anonymous"
+class TransformCreate(BaseModel):
+    object_id: str
+    name: str
+    spec: str
+    iri: Optional[str] = None
+    version: str = "1.0.0"
 
+# ---- Class -----------------------------------------------------------------
 
-# ---- Classes ---------------------------------------------------------------
-
-@app.post("/schema/class", summary="Create a Class")
+@app.post("/schema/class", summary="Create a class")
 def create_class(body: ClassCreate):
-    obj_uri = make_uri(body.id, body.version)
-    upsert_node(obj_uri, "Class", body.id, body.name, body.definition, body.version)
-
-    if body.inherit_from:
-        upsert_node(body.inherit_from, "Class")
-        add_triple(obj_uri, "rdfs:subClassOf", body.inherit_from)
-    for m in (body.mixin or []):
-        upsert_node(m, "Class")
-        add_triple(obj_uri, "reg:mixin", m)
-    if body.skos_broader:
-        upsert_node(body.skos_broader, "Class")
-        add_triple(obj_uri, "skos:broader", body.skos_broader)
-    if body.skos_related:
-        upsert_node(body.skos_related, "Class")
-        add_triple(obj_uri, "skos:related", body.skos_related)
-
-    record_provenance(obj_uri, f"Created class {body.id} v{body.version}", body.prov_agent)
-    return {"uri": obj_uri, "version": body.version}
-
-
-@app.get("/schema/class/{class_id}", summary="Get a Class (all versions)")
-def get_class(class_id: str):
-    result = conn.execute(
-        "MATCH (n:SchemaNode {object_id: $id, kind: 'Class'}) RETURN n.*",
-        {"id": class_id}
-    )
-    rows = result.get_all()
-    if not rows:
-        raise HTTPException(404, f"Class '{class_id}' not found")
-    return rows
-
-
-@app.get("/schema/classes", summary="List all Classes")
-def list_classes():
-    result = conn.execute(
-        "MATCH (n:SchemaNode) WHERE n.kind = 'Class' RETURN n.uri, n.object_id, n.name, n.version"
-    )
-    return result.get_as_df().to_dict(orient="records")
-
-
-# ---- Properties ------------------------------------------------------------
-
-@app.post("/schema/property", summary="Create a Property")
-def create_property(body: PropertyCreate):
-    obj_uri = make_uri(body.id, body.version)
-    definition_extended = (
-        f"{body.definition} | dataType:{body.data_type}"
-        f"{' units:'+body.units if body.units else ''}"
-        f"{' min:'+body.min_value if body.min_value else ''}"
-        f"{' max:'+body.max_value if body.max_value else ''}"
-        f"{' pattern:'+body.pattern if body.pattern else ''}"
-        f" multivalued:{body.multivalued} required:{body.required}"
-    )
-    upsert_node(obj_uri, "Property", body.id, body.name, definition_extended, body.version)
-
-    # Link to domain class
-    upsert_node(body.domain_class_uri, "Class")
-    add_triple(obj_uri, "rdfs:domain", body.domain_class_uri)
-
-    record_provenance(obj_uri, f"Created property {body.id} v{body.version}", body.prov_agent)
-    return {"uri": obj_uri, "version": body.version}
-
-
-@app.get("/schema/property/{prop_id}", summary="Get a Property")
-def get_property(prop_id: str):
-    result = conn.execute(
-        "MATCH (n:SchemaNode {object_id: $id, kind: 'Property'}) RETURN n.*",
-        {"id": prop_id}
-    )
-    rows = result.get_all()
-    if not rows:
-        raise HTTPException(404, f"Property '{prop_id}' not found")
-    return rows
-
-
-# ---- Rules -----------------------------------------------------------------
-
-@app.post("/schema/rule", summary="Create a Rule")
-def create_rule(body: RuleCreate):
-    obj_uri = make_uri(body.id, body.version)
-    upsert_node(obj_uri, "Rule", body.id, body.id, body.rule_spec, body.version)
-
-    for target in body.applies_to:
-        upsert_node(target, "SchemaNode")
-        add_triple(obj_uri, "reg:appliesTo", target)
-
-    record_provenance(obj_uri, f"Created rule {body.id} v{body.version}", body.prov_agent)
-    return {"uri": obj_uri, "version": body.version}
-
-
-# ---- Ingest RDF ------------------------------------------------------------
-
-@app.post("/ingest", summary="Ingest RDF (Turtle or JSON-LD) → inserts as nodes/triples")
-def ingest_rdf(body: IngestRDF):
-    import rdflib
-    fmt_map = {"text/turtle": "turtle", "application/ld+json": "json-ld",
-               "application/rdf+xml": "xml", "text/n3": "n3"}
-    fmt = fmt_map.get(body.mime_type, "turtle")
-    try:
-        g = rdflib.Graph()
-        g.parse(data=body.rdf_content, format=fmt)
-    except Exception as e:
-        raise HTTPException(400, f"RDF parse error: {e}")
-
-    source_uri = REG + "source/" + str(uuid.uuid4())
-    upsert_node(source_uri, "Source", source_uri, body.source_label, "", "1.0.0")
-
-    inserted_nodes, inserted_triples = 0, 0
-    for s, p, o in g:
-        s_uri = str(s)
-        p_str = str(p).split("/")[-1].split("#")[-1]  # short predicate label
-        upsert_node(s_uri, "SchemaNode", s_uri.split("/")[-1])
-        inserted_nodes += 1
-
-        if isinstance(o, rdflib.URIRef):
-            o_uri = str(o)
-            upsert_node(o_uri, "SchemaNode", o_uri.split("/")[-1])
-            add_triple(s_uri, p_str, o_uri)
-        else:
-            add_literal(s_uri, p_str, str(o))
-        inserted_triples += 1
-
-    record_provenance(source_uri, f"Ingested from {body.source_label}", body.prov_agent)
-    return {"status": "ok", "source_uri": source_uri,
-            "nodes_touched": inserted_nodes, "triples_inserted": inserted_triples}
-
-
-# ---- Version update --------------------------------------------------------
-
-@app.post("/schema/update/{object_id}", summary="Bump version of any object")
-def update_version(
-    object_id: str,
-    new_definition: str = Body(...),
-    prov_agent: str = Body("anonymous")
-):
-    result = conn.execute(
-        "MATCH (n:SchemaNode {object_id: $id}) RETURN n.uri, n.version, n.kind ORDER BY n.created_at DESC LIMIT 1",
-        {"id": object_id}
-    )
-    rows = result.get_all()
-    if not rows:
-        raise HTTPException(404, f"Object '{object_id}' not found")
-
-    old_uri, old_ver, kind = rows[0]
-    new_ver = bump_version(old_ver)
-    new_uri = make_uri(object_id, new_ver)
-
-    upsert_node(new_uri, kind, object_id, "", new_definition, new_ver)
-
-    # Link old → new via PRIOR_VERSION
+    b = make_base(body.object_id, body.version, body.iri)
     conn.execute("""
-        MATCH (old:SchemaNode {uri: $old}), (new:SchemaNode {uri: $new})
+        CREATE (:SchemaClass {
+            uid: $uid, iri: $iri, uri: $uri,
+            version: $version, created_at: $created_at,
+            name: $name, definition: $definition
+        })
+    """, {**b, "name": body.name, "definition": body.definition})
+
+    if body.inherit_from_iri:
+        conn.execute("""
+            MATCH (c:SchemaClass {uid: $uid}), (p:SchemaClass {iri: $piri})
+            CREATE (c)-[:SUBCLASS_OF]->(p)
+        """, {"uid": b["uid"], "piri": body.inherit_from_iri})
+    for m in (body.mixin_iris or []):
+        conn.execute("""
+            MATCH (c:SchemaClass {uid: $uid}), (m:SchemaClass {iri: $miri})
+            CREATE (c)-[:MIXIN]->(m)
+        """, {"uid": b["uid"], "miri": m})
+    if body.skos_broader_iri:
+        conn.execute("""
+            MATCH (c:SchemaClass {uid: $uid}), (s:SchemaClass {iri: $siri})
+            CREATE (c)-[:SKOS_BROADER]->(s)
+        """, {"uid": b["uid"], "siri": body.skos_broader_iri})
+    if body.skos_related_iri:
+        conn.execute("""
+            MATCH (c:SchemaClass {uid: $uid}), (s:SchemaClass {iri: $siri})
+            CREATE (c)-[:SKOS_RELATED]->(s)
+        """, {"uid": b["uid"], "siri": body.skos_related_iri})
+
+    record_activity(b["uid"], "SchemaClass",
+                    f"Created {body.object_id} v{body.version}", body.prov_agent)
+    return b
+
+@app.get("/schema/class/{object_id}", summary="Get a class (all versions)")
+def get_class(object_id: str):
+    r = conn.execute("""
+        MATCH (n:SchemaClass)
+        WHERE n.uri STARTS WITH $prefix
+        RETURN n.uid, n.iri, n.uri, n.version, n.created_at, n.name, n.definition
+        ORDER BY n.created_at
+    """, {"prefix": f"{REG}obj/{object_id}/v/"})
+    rows = r.get_all()
+    if not rows:
+        raise HTTPException(404, f"Class '{object_id}' not found")
+    return rows
+
+@app.get("/schema/classes", summary="List all classes")
+def list_classes():
+    r = conn.execute(
+        "MATCH (n:SchemaClass) RETURN n.uid, n.iri, n.uri, n.name, n.version ORDER BY n.name"
+    )
+    return r.get_as_df().to_dict(orient="records")
+
+@app.get("/schema/class/{object_id}/properties", summary="Properties on a class")
+def get_class_properties(object_id: str):
+    r = conn.execute("""
+        MATCH (c:SchemaClass)-[:HAS_PROPERTY]->(p:SchemaProperty)
+        WHERE c.uri STARTS WITH $prefix
+        RETURN p.uid, p.iri, p.uri, p.name, p.definition,
+               p.datatype, p.range_uri, p.version
+    """, {"prefix": f"{REG}obj/{object_id}/v/"})
+    return r.get_all()
+
+@app.post("/schema/class/{object_id}/bump", summary="Bump class version")
+def bump_class(object_id: str,
+               new_definition: str = Body(...),
+               prov_agent: str = Body("anonymous")):
+    r = conn.execute("""
+        MATCH (n:SchemaClass)
+        WHERE n.uri STARTS WITH $prefix
+        RETURN n.uid, n.iri, n.version, n.name
+        ORDER BY n.created_at DESC LIMIT 1
+    """, {"prefix": f"{REG}obj/{object_id}/v/"})
+    rows = r.get_all()
+    if not rows:
+        raise HTTPException(404, f"Class '{object_id}' not found")
+    old_uid, iri, old_ver, name = rows[0]
+    new_ver = bump_version(old_ver)
+    b = make_base(object_id, new_ver, iri)
+    conn.execute("""
+        CREATE (:SchemaClass {
+            uid: $uid, iri: $iri, uri: $uri,
+            version: $version, created_at: $created_at,
+            name: $name, definition: $definition
+        })
+    """, {**b, "name": name, "definition": new_definition})
+    conn.execute("""
+        MATCH (new:SchemaClass {uid: $nuid}), (old:SchemaClass {uid: $ouid})
         CREATE (new)-[:PRIOR_VERSION]->(old)
-    """, {"old": old_uri, "new": new_uri})
+    """, {"nuid": b["uid"], "ouid": old_uid})
+    record_activity(b["uid"], "SchemaClass",
+                    f"Bumped {object_id} to v{new_ver}", prov_agent)
+    return {"old_version": old_ver, "new_version": new_ver, **b}
 
-    record_provenance(new_uri, f"Updated {object_id} to v{new_ver}", prov_agent)
-    return {"old_version": old_ver, "new_version": new_ver, "new_uri": new_uri}
+# ---- Property --------------------------------------------------------------
 
+@app.post("/schema/property", summary="Create a property")
+def create_property(body: PropertyCreate):
+    b = make_base(body.object_id, body.version, body.iri)
+    conn.execute("""
+        CREATE (:SchemaProperty {
+            uid: $uid, iri: $iri, uri: $uri,
+            version: $version, created_at: $created_at,
+            name: $name, definition: $definition,
+            datatype: $datatype, range_uri: $range_uri
+        })
+    """, {**b, "name": body.name, "definition": body.definition,
+          "datatype": body.datatype, "range_uri": body.range_uri or ""})
+    conn.execute("""
+        MATCH (c:SchemaClass {iri: $ciri}), (p:SchemaProperty {uid: $puid})
+        CREATE (c)-[:HAS_PROPERTY]->(p)
+    """, {"ciri": body.domain_class_iri, "puid": b["uid"]})
+    record_activity(b["uid"], "SchemaProperty",
+                    f"Created {body.object_id} v{body.version}", body.prov_agent)
+    return b
+
+@app.get("/schema/property/{object_id}", summary="Get a property (all versions)")
+def get_property(object_id: str):
+    r = conn.execute("""
+        MATCH (n:SchemaProperty)
+        WHERE n.uri STARTS WITH $prefix
+        RETURN n.uid, n.iri, n.uri, n.version, n.created_at,
+               n.name, n.definition, n.datatype, n.range_uri
+        ORDER BY n.created_at
+    """, {"prefix": f"{REG}obj/{object_id}/v/"})
+    rows = r.get_all()
+    if not rows:
+        raise HTTPException(404, f"Property '{object_id}' not found")
+    return rows
+
+# ---- Rule ------------------------------------------------------------------
+
+@app.post("/schema/rule", summary="Create a rule")
+def create_rule(body: RuleCreate):
+    b = make_base(body.object_id, body.version, body.iri)
+    conn.execute("""
+        CREATE (:SchemaRule {
+            uid: $uid, iri: $iri, uri: $uri,
+            version: $version, created_at: $created_at,
+            name: $name, rule_spec: $rule_spec,
+            units: $units, min_val: $min_val, max_val: $max_val,
+            pattern: $pattern, multivalued: $multivalued, required: $required
+        })
+    """, {**b, "name": body.name, "rule_spec": body.rule_spec,
+          "units": body.units or "", "min_val": body.min_val or "",
+          "max_val": body.max_val or "", "pattern": body.pattern or "",
+          "multivalued": body.multivalued, "required": body.required})
+    for target_iri in body.applies_to_iris:
+        conn.execute("""
+            MATCH (r:SchemaRule {uid: $ruid}), (c:SchemaClass {iri: $ciri})
+            CREATE (r)-[:APPLIES_TO]->(c)
+        """, {"ruid": b["uid"], "ciri": target_iri})
+    record_activity(b["uid"], "SchemaRule",
+                    f"Created {body.object_id} v{body.version}", body.prov_agent)
+    return b
+
+@app.get("/schema/rule/{object_id}", summary="Get a rule")
+def get_rule(object_id: str):
+    r = conn.execute("""
+        MATCH (n:SchemaRule)
+        WHERE n.uri STARTS WITH $prefix
+        RETURN n.uid, n.iri, n.uri, n.version, n.created_at,
+               n.name, n.rule_spec, n.units, n.min_val, n.max_val,
+               n.pattern, n.multivalued, n.required
+        ORDER BY n.created_at
+    """, {"prefix": f"{REG}obj/{object_id}/v/"})
+    rows = r.get_all()
+    if not rows:
+        raise HTTPException(404, f"Rule '{object_id}' not found")
+    return rows
+
+# ---- Transform -------------------------------------------------------------
+
+@app.post("/schema/transform", summary="Create a transform")
+def create_transform(body: TransformCreate):
+    b = make_base(body.object_id, body.version, body.iri)
+    conn.execute("""
+        CREATE (:SchemaTransform {
+            uid: $uid, iri: $iri, uri: $uri,
+            version: $version, created_at: $created_at,
+            name: $name, spec: $spec
+        })
+    """, {**b, "name": body.name, "spec": body.spec})
+    return b
+
+@app.get("/schema/transform/{object_id}", summary="Get a transform")
+def get_transform(object_id: str):
+    r = conn.execute("""
+        MATCH (n:SchemaTransform)
+        WHERE n.uri STARTS WITH $prefix
+        RETURN n.uid, n.iri, n.uri, n.version, n.created_at, n.name, n.spec
+        ORDER BY n.created_at
+    """, {"prefix": f"{REG}obj/{object_id}/v/"})
+    rows = r.get_all()
+    if not rows:
+        raise HTTPException(404, f"Transform '{object_id}' not found")
+    return rows
 
 # ---- Provenance ------------------------------------------------------------
 
-@app.get("/provenance/{object_id}", summary="PROV-O history for an object")
-def get_provenance(object_id: str):
-    result = conn.execute("""
-        MATCH (n:SchemaNode {object_id: $id})-[p:PROV_ACTIVITY]->(a:SchemaNode)
-        RETURN n.uri AS object_uri, p.activity AS activity,
-               p.agent AS agent, p.started_at AS time
-        ORDER BY p.started_at DESC
-    """, {"id": object_id})
-    return result.get_all()
-
-
-# ---- Relations -------------------------------------------------------------
-
-@app.get("/schema/relations/{uri_encoded}", summary="Get all triples for a node")
-def get_relations(uri_encoded: str):
-    from urllib.parse import unquote
-    node_uri = unquote(uri_encoded)
-    out_result = conn.execute("""
-        MATCH (s:SchemaNode {uri: $uri})-[t:TRIPLE]->(o:SchemaNode)
-        RETURN s.uri AS subject, t.predicate AS predicate, o.uri AS object
-    """, {"uri": node_uri})
-    lit_result = conn.execute("""
-        MATCH (s:SchemaNode {uri: $uri})-[t:TRIPLE_LIT]->(l:Literal)
-        RETURN s.uri AS subject, t.predicate AS predicate, l.value AS object, l.dtype AS dtype
-    """, {"uri": node_uri})
-    return {
-        "node_triples": out_result.get_all(),
-        "literal_triples": lit_result.get_all(),
-    }
-
+@app.get("/provenance/class/{object_id}", summary="Provenance for a class")
+def get_class_provenance(object_id: str):
+    r = conn.execute("""
+        MATCH (n:SchemaClass)-[:PROV_GENERATED]->(a:SchemaActivity)
+        WHERE n.uri STARTS WITH $prefix
+        RETURN n.uid, n.uri, a.activity, a.agent, a.started_at
+        ORDER BY a.started_at DESC
+    """, {"prefix": f"{REG}obj/{object_id}/v/"})
+    return r.get_all()
 
 # ---- Distance stub ---------------------------------------------------------
 
 @app.get("/distance/{id1}/{id2}", summary="Distance between objects (stub)")
 def distance(id1: str, id2: str):
     return {
-        "id1": id1, "id2": id2,
-        "distance": None,
-        "note": "Distance function pending scientist specification (semantic + structural).",
+        "id1": id1, "id2": id2, "distance": None,
+        "note": "Distance function pending scientist specification.",
     }
-
 
 # ---- Health ----------------------------------------------------------------
 
 @app.get("/health")
 def health():
-    node_count  = conn.execute("MATCH (n:SchemaNode) RETURN count(n)").get_next()[0]
-    triple_count = conn.execute("MATCH ()-[t:TRIPLE]->() RETURN count(t)").get_next()[0]
-    return {"status": "ok", "schema_nodes": node_count, "triples": triple_count}
+    counts = {}
+    for t in ("SchemaClass", "SchemaProperty", "SchemaRule",
+              "SchemaTransform", "SchemaSource", "SchemaActivity"):
+        counts[t] = conn.execute(f"MATCH (n:{t}) RETURN count(n)").get_next()[0]
+    return {"status": "ok", "node_counts": counts}

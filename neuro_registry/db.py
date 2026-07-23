@@ -141,6 +141,23 @@ DDL = [
         registry_version STRING
     )""",
 
+    # SchemaVersionSnapshot — one per (schema_name, semver) pair.
+    # Records the state of a whole schema at a specific version.
+    """CREATE NODE TABLE IF NOT EXISTS SchemaVersionSnapshot (
+        uid              STRING PRIMARY KEY,
+        iri              STRING,
+        uri              STRING,
+        version          STRING,
+        created_at       STRING,
+        schema_label     STRING,
+        yml_path         STRING,
+        class_count      INT64,
+        property_count   INT64,
+        rule_count       INT64,
+        changes_summary  STRING,
+        registry_version STRING
+    )""",
+
     """CREATE NODE TABLE IF NOT EXISTS SchemaActivity (
         uid              STRING PRIMARY KEY,
         iri              STRING,
@@ -155,9 +172,36 @@ DDL = [
     )""",
 
     # ---- Relationship tables -----------------------------------------------
-    "CREATE REL TABLE IF NOT EXISTS PRIOR_VERSION    (FROM SchemaClass TO SchemaClass)",
-    "CREATE REL TABLE IF NOT EXISTS PRIOR_VERSION_P  (FROM SchemaProperty TO SchemaProperty)",
-    "CREATE REL TABLE IF NOT EXISTS PRIOR_VERSION_R  (FROM SchemaRule TO SchemaRule)",
+    # Version chains carry diff data — what changed between v_n-1 and v_n
+    """CREATE REL TABLE IF NOT EXISTS PRIOR_VERSION (
+        FROM SchemaClass TO SchemaClass,
+        diff_summary        STRING,
+        changed_fields      STRING,
+        added_properties    STRING,
+        removed_properties  STRING,
+        definition_from     STRING,
+        definition_to       STRING,
+        registry_version    STRING,
+        created_at          STRING
+    )""",
+    """CREATE REL TABLE IF NOT EXISTS PRIOR_VERSION_P (
+        FROM SchemaProperty TO SchemaProperty,
+        diff_summary        STRING,
+        changed_fields      STRING,
+        definition_from     STRING,
+        definition_to       STRING,
+        datatype_from       STRING,
+        datatype_to         STRING,
+        registry_version    STRING,
+        created_at          STRING
+    )""",
+    """CREATE REL TABLE IF NOT EXISTS PRIOR_VERSION_R (
+        FROM SchemaRule TO SchemaRule,
+        diff_summary        STRING,
+        changed_fields      STRING,
+        registry_version    STRING,
+        created_at          STRING
+    )""",
     "CREATE REL TABLE IF NOT EXISTS HAS_PROPERTY     (FROM SchemaClass TO SchemaProperty)",
     "CREATE REL TABLE IF NOT EXISTS APPLIES_TO       (FROM SchemaRule TO SchemaClass)",
     "CREATE REL TABLE IF NOT EXISTS SUBCLASS_OF      (FROM SchemaClass TO SchemaClass)",
@@ -187,6 +231,128 @@ DDL = [
 # Connection factory
 # ---------------------------------------------------------------------------
 
+def _migrate_rel_table(conn: lb.Connection, name: str,
+                       probe_props: dict, create_sql: str) -> None:
+    """Generic drop-and-recreate for a rel table with new columns."""
+    try:
+        props_str = ", ".join(f"{k}: {repr(v)}" if isinstance(v, str) else f"{k}: {v}"
+                              for k, v in probe_props.items())
+        conn.execute(f"""
+            MATCH (a:SchemaClass), (b:SchemaClass)
+            WHERE a.uid <> b.uid
+            WITH a, b LIMIT 1
+            CREATE (a)-[:{name} {{{props_str}}}]->(b)
+        """)
+        conn.execute(f"MATCH ()-[r:{name}]->() WHERE r.diff_summary = '__probe__' OR r.method = '__probe__' DELETE r")
+    except Exception:
+        try:
+            conn.execute(f"DROP TABLE {name}")
+        except Exception:
+            pass
+        conn.execute(create_sql)
+
+
+def _migrate_aligned_to(conn: lb.Connection) -> None:
+    """Drop and recreate ALIGNED_TO if stale."""
+    try:
+        conn.execute("""
+            MATCH (a:SchemaClass), (b:SchemaClass)
+            WHERE a.uid <> b.uid
+            WITH a, b LIMIT 1
+            CREATE (a)-[:ALIGNED_TO {
+                distance: 0.0, method: '__probe__',
+                score_iri: 0.0, score_name: 0.0,
+                score_desc: 0.0, score_slot: 0.0,
+                registry_version: ''
+            }]->(b)
+        """)
+        conn.execute("MATCH ()-[r:ALIGNED_TO {method: '__probe__'}]->() DELETE r")
+    except Exception:
+        try:
+            conn.execute("DROP TABLE ALIGNED_TO")
+        except Exception:
+            pass
+        conn.execute("""
+            CREATE REL TABLE ALIGNED_TO (
+                FROM SchemaClass TO SchemaClass,
+                distance         DOUBLE,
+                method           STRING,
+                score_iri        DOUBLE,
+                score_name       DOUBLE,
+                score_desc       DOUBLE,
+                score_slot       DOUBLE,
+                registry_version STRING
+            )
+        """)
+
+
+def _migrate_prior_version(conn: lb.Connection) -> None:
+    """Drop and recreate PRIOR_VERSION tables if they lack diff fields."""
+    # PRIOR_VERSION (SchemaClass)
+    try:
+        conn.execute("""
+            MATCH (a:SchemaClass), (b:SchemaClass) WHERE a.uid <> b.uid
+            WITH a, b LIMIT 1
+            CREATE (a)-[:PRIOR_VERSION {
+                diff_summary: '__probe__', changed_fields: '',
+                added_properties: '', removed_properties: '',
+                definition_from: '', definition_to: '',
+                registry_version: '', created_at: ''
+            }]->(b)
+        """)
+        conn.execute("MATCH ()-[r:PRIOR_VERSION {diff_summary: '__probe__'}]->() DELETE r")
+    except Exception:
+        try:
+            conn.execute("DROP TABLE PRIOR_VERSION")
+        except Exception:
+            pass
+        conn.execute("""
+            CREATE REL TABLE PRIOR_VERSION (
+                FROM SchemaClass TO SchemaClass,
+                diff_summary        STRING,
+                changed_fields      STRING,
+                added_properties    STRING,
+                removed_properties  STRING,
+                definition_from     STRING,
+                definition_to       STRING,
+                registry_version    STRING,
+                created_at          STRING
+            )
+        """)
+
+    # PRIOR_VERSION_P (SchemaProperty)
+    try:
+        conn.execute("""
+            MATCH (a:SchemaProperty), (b:SchemaProperty) WHERE a.uid <> b.uid
+            WITH a, b LIMIT 1
+            CREATE (a)-[:PRIOR_VERSION_P {
+                diff_summary: '__probe__', changed_fields: '',
+                definition_from: '', definition_to: '',
+                datatype_from: '', datatype_to: '',
+                registry_version: '', created_at: ''
+            }]->(b)
+        """)
+        conn.execute("MATCH ()-[r:PRIOR_VERSION_P {diff_summary: '__probe__'}]->() DELETE r")
+    except Exception:
+        try:
+            conn.execute("DROP TABLE PRIOR_VERSION_P")
+        except Exception:
+            pass
+        conn.execute("""
+            CREATE REL TABLE PRIOR_VERSION_P (
+                FROM SchemaProperty TO SchemaProperty,
+                diff_summary     STRING,
+                changed_fields   STRING,
+                definition_from  STRING,
+                definition_to    STRING,
+                datatype_from    STRING,
+                datatype_to      STRING,
+                registry_version STRING,
+                created_at       STRING
+            )
+        """)
+
+
 def get_connection(db_path: str = "./registry.lbug") -> lb.Connection:
     """Open (or create) a LadybugDB database and ensure all tables exist."""
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
@@ -194,6 +360,8 @@ def get_connection(db_path: str = "./registry.lbug") -> lb.Connection:
     conn = lb.Connection(db)
     for stmt in DDL:
         conn.execute(stmt)
+    _migrate_aligned_to(conn)
+    _migrate_prior_version(conn)
     return conn
 
 # ---------------------------------------------------------------------------

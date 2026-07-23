@@ -1,8 +1,8 @@
-# NeuroRegistry
+# NeuroGhost
 
 **A shared vocabulary for neuroscience data.**
 
-🌐 **Live site:** [sensein.group/NeuroRegistry](https://sensein.group/NeuroRegistry/)
+🌐 **Live site:** [sensein.group/NeuroRegistry](https://sensein.group/NeuroGhost/)
 
 ---
 

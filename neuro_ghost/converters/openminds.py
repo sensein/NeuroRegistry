@@ -90,10 +90,11 @@ def convert() -> dict:
                                 continue
                             if not isinstance(pbody, dict):
                                 continue
-                            raw_type = pbody.get("type", "string")
+                            raw_type = pbody.get("type") or "string"
                             if isinstance(raw_type, list):
-                                raw_type = next((t for t in raw_type if t != "null"), "string")
-                            xsd = OPENMINDS_TYPE_MAP.get(raw_type, "xsd:string")
+                                raw_type = next((t for t in raw_type if t and t != "null"), "string")
+                            raw_type = str(raw_type) if raw_type else "string"
+                            xsd = OPENMINDS_TYPE_MAP.get(raw_type.lower(), "xsd:string")
                             key = f"{cls_name}__{prop}"
                             all_slots[key] = {
                                 "description": pbody.get("description", ""),

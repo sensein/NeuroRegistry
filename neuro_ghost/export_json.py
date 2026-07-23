@@ -42,7 +42,7 @@ def export_snapshot(conn, registry_version: str) -> dict:
     sources = []
     for _, label, ver in src_rows:
         count = conn.execute(
-            "MATCH (n:SchemaClass {source_label: $src}) RETURN count(n)",
+            "MATCH (n:RegistryClass {source_label: $src}) RETURN count(n)",
             {"src": label}
         ).get_next()[0]
         sources.append({"label": label, "version": ver or "1.0.0",
@@ -50,66 +50,68 @@ def export_snapshot(conn, registry_version: str) -> dict:
 
     # ---- classes -----------------------------------------------------------
     cls_rows = conn.execute("""
-        MATCH (n:SchemaClass)
-        RETURN n.uid, n.iri, n.uri, n.name, n.definition,
-               n.version, n.abstract, n.source_label, n.registry_version
+        MATCH (n:RegistryClass)
+        RETURN n.hash_id, n.iri, n.name, n.definition,
+               n.is_abstract, n.source_label, n.registry_version
         ORDER BY n.source_label, n.name
     """).get_all()
 
     classes = []
     for row in cls_rows:
-        uid, iri, uri, name, defn, ver, abstract, source, reg_ver = row
+        hash_id, iri, name, defn, is_abstract, source, reg_ver = row
 
         props = conn.execute("""
-            MATCH (c:SchemaClass {uid: $uid})-[:HAS_PROPERTY]->(p:SchemaProperty)
-            RETURN p.uid, p.iri, p.name, p.definition,
-                   p.datatype, p.range_uri, p.multivalued, p.required, p.source_label
+            MATCH (c:RegistryClass {hash_id: $hash_id})-[:HAS_PROPERTY]->(p:RegistryProperty)
+            RETURN p.hash_id, p.iri, p.name, p.definition,
+                   p.value_range, p.multivalued, p.required, p.source_label
             ORDER BY p.name
-        """, {"uid": uid}).get_all()
+        """, {"hash_id": hash_id}).get_all()
 
         subclass_of = [
             r[0] for r in conn.execute("""
-                MATCH (c:SchemaClass {uid: $uid})-[:SUBCLASS_OF]->(p:SchemaClass)
+                MATCH (c:RegistryClass {hash_id: $hash_id})-[:SUBCLASS_OF]->(p:RegistryClass)
                 RETURN p.iri
-            """, {"uid": uid}).get_all() if r[0]
+            """, {"hash_id": hash_id}).get_all() if r[0]
         ]
 
         align_rows = conn.execute("""
-            MATCH (c:SchemaClass {uid: $uid})-[a:ALIGNED_TO]->(t:SchemaClass)
-            RETURN t.uid, t.name, t.iri, t.source_label,
+            MATCH (c:RegistryClass {hash_id: $hash_id})-[a:ALIGNED_TO]->(t:RegistryClass)
+            RETURN t.hash_id, t.name, t.iri, t.source_label,
                    a.distance, a.method,
                    a.score_iri, a.score_name, a.score_desc, a.score_slot
             ORDER BY a.distance
-        """, {"uid": uid}).get_all()
+        """, {"hash_id": hash_id}).get_all()
 
         classes.append({
-            "uid":              uid,
+            "hash_id":          hash_id,
             "iri":              iri or "",
-            "uri":              uri or "",
             "name":             name or "",
             "definition":       defn or "",
-            "version":          ver or "1.0.0",
             "registry_version": reg_ver or "",
-            "abstract":         bool(abstract),
+            "is_abstract":      bool(is_abstract),
             "source":           source or "",
             "properties": [
                 {
-                    "uid":         r[0], "iri":  r[1] or "",
-                    "name":        r[2] or "", "definition": r[3] or "",
-                    "datatype":    r[4] or "", "range_uri":  r[5] or "",
-                    "multivalued": bool(r[6]), "required":   bool(r[7]),
-                    "source":      r[8] or "",
+                    "hash_id":     r[0],
+                    "iri":         r[1] or "",
+                    "name":        r[2] or "",
+                    "definition":  r[3] or "",
+                    "value_range": r[4] or "",
+                    "multivalued": bool(r[5]),
+                    "required":    bool(r[6]),
+                    "source":      r[7] or "",
                 }
                 for r in props
             ],
             "subclass_of": subclass_of,
             "alignments": [
                 {
-                    "target_uid":    r[0], "target_name":   r[1] or "",
-                    "target_iri":    r[2] or "",
-                    "target_source": r[3] or "",
-                    "distance":      float(r[4]) if r[4] is not None else 1.0,
-                    "method":        r[5] or "",
+                    "target_hash_id": r[0],
+                    "target_name":    r[1] or "",
+                    "target_iri":     r[2] or "",
+                    "target_source":  r[3] or "",
+                    "distance":       float(r[4]) if r[4] is not None else 1.0,
+                    "method":         r[5] or "",
                     "scores": {
                         "iri":  float(r[6]) if r[6] is not None else 0.0,
                         "name": float(r[7]) if r[7] is not None else 0.0,

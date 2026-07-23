@@ -384,7 +384,7 @@ def compute_distance(a: dict, b: dict) -> tuple[float, str, dict]:
 
 def load_classes(conn, source_label: str | None = None) -> list[dict]:
     """
-    Load SchemaClass nodes from the graph for alignment.
+    Load RegistryClass nodes from the graph for alignment.
 
     Only loads the LATEST version of each class (no PRIOR_VERSION pointing
     to it). We don't align old versions — only current ones.
@@ -393,48 +393,45 @@ def load_classes(conn, source_label: str | None = None) -> list[dict]:
     """
     if source_label:
         rows = conn.execute("""
-            MATCH (n:SchemaClass {source_label: $src})
+            MATCH (n:RegistryClass {source_label: $src})
             WHERE NOT EXISTS {
-                MATCH (newer:SchemaClass)-[:PRIOR_VERSION]->(n)
+                MATCH (newer:RegistryClass)-[:PRIOR_VERSION]->(n)
             }
-            RETURN n.uid, n.iri, n.name, n.definition,
-                   n.source_label, n.content_id
+            RETURN n.hash_id, n.iri, n.name, n.definition, n.source_label
         """, {"src": source_label}).get_all()
     else:
         rows = conn.execute("""
-            MATCH (n:SchemaClass)
+            MATCH (n:RegistryClass)
             WHERE NOT EXISTS {
-                MATCH (newer:SchemaClass)-[:PRIOR_VERSION]->(n)
+                MATCH (newer:RegistryClass)-[:PRIOR_VERSION]->(n)
             }
-            RETURN n.uid, n.iri, n.name, n.definition,
-                   n.source_label, n.content_id
+            RETURN n.hash_id, n.iri, n.name, n.definition, n.source_label
         """).get_all()
 
     classes = []
-    for uid, iri, name, defn, src, cid in rows:
+    for hash_id, iri, name, defn, src in rows:
         if not src:  # skip nodes with no source_label — orphaned from bad ingest
             continue
         # Get property IRIs for slot Jaccard scoring
         slot_iris = [
             r[0] for r in conn.execute("""
-                MATCH (c:SchemaClass {uid: $uid})-[:HAS_PROPERTY]->(p:SchemaProperty)
+                MATCH (c:RegistryClass {hash_id: $hash_id})-[:HAS_PROPERTY]->(p:RegistryProperty)
                 RETURN p.iri
-            """, {"uid": uid}).get_all() if r[0]
+            """, {"hash_id": hash_id}).get_all() if r[0]
         ]
         # Check if this class has a known parent (for broadMatch vs narrowMatch)
         parent_iris = [
             r[0] for r in conn.execute("""
-                MATCH (c:SchemaClass {uid: $uid})-[:SUBCLASS_OF]->(p:SchemaClass)
+                MATCH (c:RegistryClass {hash_id: $hash_id})-[:SUBCLASS_OF]->(p:RegistryClass)
                 RETURN p.iri
-            """, {"uid": uid}).get_all() if r[0]
+            """, {"hash_id": hash_id}).get_all() if r[0]
         ]
         classes.append({
-            "uid":         uid,
-            "iri":         iri        or "",
-            "name":        name       or "",
-            "definition":  defn       or "",
-            "source":      src        or "",
-            "content_id":  cid        or "",
+            "hash_id":    hash_id,
+            "iri":        iri       or "",
+            "name":       name      or "",
+            "definition": defn      or "",
+            "source":     src       or "",
             "slot_iris":   slot_iris,
             "parent_iris": parent_iris,
         })
@@ -481,12 +478,12 @@ def pairs_across_sources(
 # Write alignment to graph
 # ---------------------------------------------------------------------------
 
-def write_alignment(conn, uid_a: str, uid_b: str,
+def write_alignment(conn, hash_id_a: str, hash_id_b: str,
                     distance: float, method: str,
                     subscores: dict, skos_rel: str,
                     registry_version: str = "") -> None:
     """
-    Write an ALIGNED_TO edge between two SchemaClass nodes.
+    Write an ALIGNED_TO edge between two RegistryClass nodes.
 
     We delete any existing edge first to avoid duplicates (alignment is
     re-runnable). The new edge carries:
@@ -498,12 +495,12 @@ def write_alignment(conn, uid_a: str, uid_b: str,
     """
     # Remove stale edge if it exists
     conn.execute("""
-        MATCH (a:SchemaClass {uid: $ua})-[r:ALIGNED_TO]->(b:SchemaClass {uid: $ub})
+        MATCH (a:RegistryClass {hash_id: $ua})-[r:ALIGNED_TO]->(b:RegistryClass {hash_id: $ub})
         DELETE r
-    """, {"ua": uid_a, "ub": uid_b})
+    """, {"ua": hash_id_a, "ub": hash_id_b})
 
     conn.execute("""
-        MATCH (a:SchemaClass {uid: $ua}), (b:SchemaClass {uid: $ub})
+        MATCH (a:RegistryClass {hash_id: $ua}), (b:RegistryClass {hash_id: $ub})
         CREATE (a)-[:ALIGNED_TO {
             distance:         $d,
             method:           $m,
@@ -515,8 +512,8 @@ def write_alignment(conn, uid_a: str, uid_b: str,
             registry_version: $rv
         }]->(b)
     """, {
-        "ua": uid_a,
-        "ub": uid_b,
+        "ua": hash_id_a,
+        "ub": hash_id_b,
         "d":  distance,
         "m":  method,
         "sr": skos_rel,
@@ -550,7 +547,7 @@ def write_alignment(conn, uid_a: str, uid_b: str,
 def cli(source, db, threshold, min_signal,
         registry_version, dry_run, save_cache) -> None:
     """
-    Compute semantic alignment between SchemaClass nodes across sources.
+    Compute semantic alignment between RegistryClass nodes across sources.
 
     Writes ALIGNED_TO edges with distance, SKOS relation, and subscores.
     Only processes the latest version of each class.
@@ -639,7 +636,7 @@ def cli(source, db, threshold, min_signal,
             )
         else:
             write_alignment(
-                conn, a["uid"], b["uid"],
+                conn, a["hash_id"], b["hash_id"],
                 distance, method, subscores, skos_rel,
                 registry_version,
             )

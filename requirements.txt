@@ -1,5 +1,5 @@
 # NeuroRegistry — Python dependencies
-ladybug>=0.11.0
+ladybug>=0.11.0,<0.18  # 0.18.x has no macOS arm64 wheel; pins to a version with prebuilt binaries
 fastapi>=0.111.0
 uvicorn[standard]>=0.29.0
 rdflib>=7.0.0

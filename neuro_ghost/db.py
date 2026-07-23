@@ -66,17 +66,17 @@ def make_base(object_id: str, version: str = "1.0.0",
               created_by: str = "system") -> dict:
     """Return the shared identity fields for a new registry entity.
 
-    hash_id is derived from the IRI so the same concept from any source
-    produces the same key. created_by and created_at are the only provenance
-    fields set here; callers add modified_by / modified_at / derived_from
-    as needed.
+    hash_id includes a per-call UUID so that each creation event (including
+    new versions of the same IRI) produces a distinct node key.
+    The `version` parameter is accepted for backward compatibility but ignored.
     """
     iri_ = iri or make_iri(object_id)
+    ts   = now_iso()
     return {
-        "hash_id":    make_hash_id({"iri": iri_}),
+        "hash_id":    make_hash_id({"iri": iri_, "nonce": make_uid()}),
         "iri":        iri_,
         "created_by": created_by,
-        "created_at": now_iso(),
+        "created_at": ts,
     }
 
 def bump_version(ver: str, bump: str = "patch") -> str:

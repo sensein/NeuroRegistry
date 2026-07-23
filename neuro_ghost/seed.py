@@ -2,7 +2,7 @@
 seed.py — Populate the SenseIn Schema Registry from schema.org
 
 Fetches schema.org's machine-readable JSON-LD and inserts the core type
-hierarchy as SchemaClass + SchemaProperty nodes using the same make_base
+hierarchy as RegistryClass + RegistryProperty nodes using the same make_base
 identity pattern as the main registry.
 
 Seeded types (top-level schema.org hierarchy):
@@ -10,7 +10,7 @@ Seeded types (top-level schema.org hierarchy):
            Product, Action, MedicalEntity
   + AudioObject, ImageObject, VideoObject (embedded media)
 
-Each class gets its full set of schema.org properties as SchemaProperty
+Each class gets its full set of schema.org properties as RegistryProperty
 nodes linked via HAS_PROPERTY.
 
 Usage:
@@ -152,14 +152,14 @@ def seed(db_path: str = "./registry.lbug",
     conn = get_connection(db_path)
 
     if wipe and not dry_run:
-        print("Wiping existing SchemaClass and SchemaProperty nodes …")
-        conn.execute("MATCH (n:SchemaClass) DETACH DELETE n")
-        conn.execute("MATCH (n:SchemaProperty) DETACH DELETE n")
+        print("Wiping existing RegistryClass and RegistryProperty nodes …")
+        conn.execute("MATCH (n:RegistryClass) DETACH DELETE n")
+        conn.execute("MATCH (n:RegistryProperty) DETACH DELETE n")
 
     # Idempotency check
     if not dry_run and not wipe:
         r = conn.execute(
-            "MATCH (n:SchemaClass {iri: $iri}) RETURN n.uid LIMIT 1",
+            "MATCH (n:RegistryClass {iri: $iri}) RETURN n.hash_id LIMIT 1",
             {"iri": "https://schema.org/Thing"}
         )
         if r.has_next():
@@ -171,32 +171,31 @@ def seed(db_path: str = "./registry.lbug",
     classes = collect_classes(g)
 
     print(f"Inserting {len(classes)} classes …")
-    class_uid: dict[str, str] = {}   # short_name → uid
+    class_hash_id: dict[str, str] = {}   # short_name → hash_id
 
     # Pass 1: insert all class nodes
-    # LadybugDB requires uid (PK) in the MATCH clause of MERGE, so we do a
-    # manual existence check + CREATE instead.
+    # LadybugDB requires hash_id (PK) in the MATCH clause of MERGE, so we do
+    # a manual existence check + CREATE instead.
     for name, info in classes.items():
         b = make_base(name, iri=info["iri"])
-        class_uid[name] = b["uid"]
+        class_hash_id[name] = b["hash_id"]
         if dry_run:
             continue
         exists = conn.execute(
-            "MATCH (n:SchemaClass {iri: $iri}) RETURN n.uid LIMIT 1",
+            "MATCH (n:RegistryClass {iri: $iri}) RETURN n.hash_id LIMIT 1",
             {"iri": info["iri"]}
         ).has_next()
         if exists:
             continue
         conn.execute("""
-            CREATE (:SchemaClass {
-                uid:           $uid,
+            CREATE (:RegistryClass {
+                hash_id:       $hash_id,
                 iri:           $iri,
-                uri:           $uri,
-                version:       $version,
+                created_by:    $created_by,
                 created_at:    $created_at,
                 name:          $name,
                 definition:    $definition,
-                abstract:      false,
+                is_abstract:   false,
                 source_label:  'schema.org'
             })
         """, {**b,
@@ -213,8 +212,8 @@ def seed(db_path: str = "./registry.lbug",
                 continue
             # Only link if BOTH nodes already exist — don't create orphan parent nodes
             conn.execute("""
-                MATCH (c:SchemaClass {iri: $ciri}),
-                      (p:SchemaClass {iri: $piri})
+                MATCH (c:RegistryClass {iri: $ciri}),
+                      (p:RegistryClass {iri: $piri})
                 WHERE p.source_label IS NOT NULL AND p.source_label <> ''
                 MERGE (c)-[:SUBCLASS_OF]->(p)
             """, {"ciri": info["iri"],
@@ -223,7 +222,7 @@ def seed(db_path: str = "./registry.lbug",
     # Pass 3: properties
     total_props = sum(len(info["props"]) for info in classes.values())
     print(f"Inserting {total_props} properties …")
-    seen_props: set[str] = set()   # avoid duplicate SchemaProperty nodes
+    seen_props: set[str] = set()   # avoid duplicate RegistryProperty nodes
 
     for name, info in classes.items():
         for prop in info["props"]:
@@ -236,52 +235,49 @@ def seed(db_path: str = "./registry.lbug",
             if prop_key not in seen_props:
                 seen_props.add(prop_key)
                 b = make_base(prop["name"], iri=prop["iri"])
-                range_uri = prop["ranges"][0] if prop["ranges"] else ""
+                value_range = prop["ranges"][0] if prop["ranges"] else "xsd:string"
                 exists = conn.execute(
-                    "MATCH (p:SchemaProperty {iri: $iri}) RETURN p.uid LIMIT 1",
+                    "MATCH (p:RegistryProperty {iri: $iri}) RETURN p.hash_id LIMIT 1",
                     {"iri": prop["iri"]}
                 ).has_next()
                 if not exists:
                     conn.execute("""
-                        CREATE (:SchemaProperty {
-                            uid:          $uid,
+                        CREATE (:RegistryProperty {
+                            hash_id:      $hash_id,
                             iri:          $iri,
-                            uri:          $uri,
-                            version:      $version,
+                            created_by:   $created_by,
                             created_at:   $created_at,
                             name:         $name,
                             definition:   $definition,
-                            datatype:     $datatype,
-                            range_uri:    $range_uri,
+                            value_range:  $value_range,
                             multivalued:  false,
                             required:     false,
                             source_label: 'schema.org'
                         })
                     """, {**b,
-                          "name":       prop["label"],
-                          "definition": prop["comment"],
-                          "datatype":   "xsd:string",
-                          "range_uri":  range_uri})
+                          "name":        prop["label"],
+                          "definition":  prop["comment"],
+                          "value_range": value_range})
 
             # Link class → property
             conn.execute("""
-                MATCH (c:SchemaClass  {iri: $ciri}),
-                      (p:SchemaProperty {iri: $piri})
+                MATCH (c:RegistryClass    {iri: $ciri}),
+                      (p:RegistryProperty {iri: $piri})
                 MERGE (c)-[:HAS_PROPERTY]->(p)
             """, {"ciri": info["iri"], "piri": prop_key})
 
     if dry_run:
         print(f"\n[dry-run] Would insert:")
-        print(f"  {len(classes)} SchemaClass nodes")
-        print(f"  {total_props} SchemaProperty nodes (deduplicated)")
+        print(f"  {len(classes)} RegistryClass nodes")
+        print(f"  {total_props} RegistryProperty nodes (deduplicated)")
         for name, info in sorted(classes.items())[:12]:
             print(f"    {name}: {len(info['props'])} props, "
                   f"parents={info['subclass_of']}")
         print("  … (showing first 12)")
     else:
         # Summary
-        nc = conn.execute("MATCH (n:SchemaClass) RETURN count(n)").get_next()[0]
-        np = conn.execute("MATCH (n:SchemaProperty) RETURN count(n)").get_next()[0]
+        nc = conn.execute("MATCH (n:RegistryClass) RETURN count(n)").get_next()[0]
+        np = conn.execute("MATCH (n:RegistryProperty) RETURN count(n)").get_next()[0]
         print(f"\nDone. Registry now has {nc} classes, {np} properties.")
 
 

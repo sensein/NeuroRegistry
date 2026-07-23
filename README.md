@@ -14,7 +14,7 @@ someone an *Investigator*, another calls them a *Person*, another calls them a
 brains, experiments, devices, subjects, publications — and it becomes very hard
 for different groups to share or combine data.
 
-**NeuroRegistry is a public catalog of these vocabularies.** Any lab or project
+**NeuroGhost is a public catalog of these vocabularies.** Any lab or project
 can publish their schema (their definitions), and the registry automatically
 compares it to every other schema already in the catalog, so you can see:
 
@@ -79,18 +79,18 @@ slide them around and watch alignments recompute in real time.
 
 ## Using the website
 
-Go to **[sensein.group/NeuroRegistry](https://sensein.group/NeuroRegistry/)**.
+Go to **[sensein.group/NeuroGhost](https://sensein.group/NeuroGhost/)**.
 You'll see seven tabs:
 
-- **Browse** — every class in every schema, searchable. Click any row to see
-  properties, alignments, and download the class as JSON or YAML.
 - **Concepts** — classes grouped by meaning. Aligned classes from different
   schemas collapse into a single card.
 - **Diff** — pick any two schemas, see which classes overlap and which are unique
   to each.
-- **Tree** — the subclass hierarchy, expandable.
 - **Graph Schema** — how the underlying database is structured (for the curious).
-- **Provenance** — a full timeline of every change to the registry.
+- **Transform** — convert a CSV from one schema's format to another.
+- **Query** — structured query builder + Claude-assisted natural language queries.
+- **Provenance** — a full timeline of every change to the registry, with per-class
+  version diffs.
 - **Register** — submit a new schema.
 
 Every view has download buttons. You can grab a single class, a whole schema,
@@ -105,7 +105,7 @@ The easiest way, no setup required:
 1. Write your schema as a LinkML `.yml` file (see the
    [LinkML tutorial](https://linkml.io/linkml/intro/tutorial01.html) or copy
    `schemas/bbqs.yml` from this repo as a template).
-2. Go to the [Register tab](https://sensein.group/NeuroRegistry/) on the website.
+2. Go to the [Register tab](https://sensein.group/NeuroGhost/) on the website.
 3. Paste your YAML, give it a name, click **Open GitHub Issue**.
 4. A GitHub Issue opens in a new tab, pre-filled. Click **Submit**.
 5. Within a couple of minutes, an automated workflow will:
@@ -126,50 +126,28 @@ Only needed if you want to develop the registry itself, or bulk-load schemas
 outside the web flow.
 
 ```bash
-git clone https://github.com/sensein/NeuroRegistry.git
-cd NeuroRegistry
+git clone https://github.com/sensein/NeuroGhost.git
+cd NeuroGhost
 pip install -r requirements.txt
 
 # 1. Seed with schema.org as the base vocabulary
-python neuro_registry/seed.py
+python neuro_ghost/seed.py
 
-# 2. Load a schema
-python neuro_registry/ingest_linkml.py --file schemas/bbqs.yml
+# 2. Fetch + convert external schemas (BIDS, NWB, DANDI, openMINDS, AIND)
+python neuro_ghost/converters/run_all.py
 
-# 3. Compute alignments
-python neuro_registry/align.py --source bbqs
+# 3. Load a schema
+python neuro_ghost/ingest_linkml.py --file schemas/bbqs.yml
 
-# 4. Export snapshot the frontend reads
-python neuro_registry/export_json.py --bump minor --schema bbqs
+# 4. Compute alignments
+python neuro_ghost/align.py --source bbqs
+
+# 5. Export snapshot the frontend reads
+python neuro_ghost/export_json.py --bump minor --schema bbqs
 ```
 
 Then open `index.html` in a browser and you'll see the local snapshot.
 
----
-
-## What's in this repo
-
-```
-NeuroRegistry/
-├── index.html                     ← The website you see at sensein.group
-├── data/
-│   ├── registry.json              ← Current registry snapshot (auto-generated)
-│   ├── provenance.json            ← Full timeline of every change
-│   └── versions/                  ← Archived snapshot of every registry version
-├── schemas/                       ← Registered schemas (LinkML .yml files)
-│   └── bbqs.yml
-├── neuro_registry/                ← Python code
-│   ├── db.py                      ← Database setup
-│   ├── seed.py                    ← Loads schema.org as the base layer
-│   ├── ingest_linkml.py           ← Imports a .yml schema into the graph
-│   ├── align.py                   ← Computes alignments between schemas
-│   └── export_json.py             ← Exports the graph as registry.json
-├── .github/workflows/
-│   └── schema-submission.yml      ← The automation that runs on new submissions
-└── requirements.txt
-```
-
----
 
 ## Under the hood
 
@@ -193,8 +171,8 @@ something changes.
 
 ## Contributing
 
-- **Register a schema:** use the [Register tab](https://sensein.group/NeuroRegistry/) on the site.
-- **Report an issue or suggest a feature:** [open an issue](https://github.com/sensein/NeuroRegistry/issues/new).
+- **Register a schema:** use the [Register tab](https://sensein.group/NeuroGhost/) on the site.
+- **Report an issue or suggest a feature:** [open an issue](https://github.com/sensein/NeuroGhost/issues/new).
 - **Improve the tooling:** PRs welcome, especially around the distance function.
 
 ---

@@ -1,101 +1,204 @@
-# SenseIn Schema Registry
+# NeuroRegistry
 
-Decentralised schema registry. Backed by LadybugDB (embedded property graph)
-and served over HTTP via FastAPI.
+**A shared vocabulary for neuroscience data.**
 
-## Quick start
+🌐 **Live site:** [sensein.group/NeuroRegistry](https://sensein.group/NeuroRegistry/)
+
+---
+
+## What is this?
+
+Every neuroscience lab describes its data a little differently. One group calls
+someone an *Investigator*, another calls them a *Person*, another calls them a
+*Researcher*. Same idea, three names. Multiply that across every concept —
+brains, experiments, devices, subjects, publications — and it becomes very hard
+for different groups to share or combine data.
+
+**NeuroRegistry is a public catalog of these vocabularies.** Any lab or project
+can publish their schema (their definitions), and the registry automatically
+compares it to every other schema already in the catalog, so you can see:
+
+- What terms already exist for a concept you care about
+- Which terms across different schemas actually mean the same thing
+- Which are unique to a particular project
+- How the definitions have evolved over time
+
+Think of it as a **Rosetta Stone for neuroscience data models.**
+
+---
+
+## Key concepts (short version)
+
+**Schema** — one group's vocabulary. A list of the things they care about
+(*classes*), the things they measure (*properties*), and any constraints
+(*rules*). Schemas are written in a simple text format called
+[LinkML](https://linkml.io/), one file per project.
+
+**Class** — a type of thing. `Person`, `BrainRegion`, `Recording`, `Publication`.
+
+**Property** — something a class has or does. A `Person` has a `name` and an `orcid`.
+
+**Rule** — a constraint on a property. `age` must be a positive integer.
+`sampling_rate` must be measured in Hz.
+
+**Alignment** — the registry's automatic comparison between two classes from
+different schemas, expressed as a number between 0 and 1:
+
+- **0.0** = "these are definitely the same thing"
+- **0.5** = "these are related but not identical"
+- **1.0** = "these have nothing to do with each other"
+
+**Registry version** — every time a schema is added or updated, the whole
+registry gets a new version number (like `1.2.0`). Old versions never disappear
+— you can always go back and see what the registry looked like at any point in
+time.
+
+---
+
+## How the distance function works (in plain English)
+
+When the registry compares two classes, it looks at three things and combines
+them into a single distance score:
+
+1. **IRI match** *(weight: 60%)* — Do the two classes explicitly point to the
+   same universal identifier? For example, both saying "this is the same as
+   schema.org's Person" is a perfect match.
+
+2. **Name similarity** *(weight: 15%)* — Do the class names mean similar things?
+   Uses AI embeddings (the same math that powers modern search) to compare, so
+   `Investigator` and `Researcher` register as similar even though the letters
+   are different.
+
+3. **Definition similarity** *(weight: 25%)* — Do the plain-English descriptions
+   describe similar things? Same embedding approach.
+
+You can play with these weights live on the **Concepts** page of the website —
+slide them around and watch alignments recompute in real time.
+
+---
+
+## Using the website
+
+Go to **[sensein.group/NeuroRegistry](https://sensein.group/NeuroRegistry/)**.
+You'll see seven tabs:
+
+- **Browse** — every class in every schema, searchable. Click any row to see
+  properties, alignments, and download the class as JSON or YAML.
+- **Concepts** — classes grouped by meaning. Aligned classes from different
+  schemas collapse into a single card.
+- **Diff** — pick any two schemas, see which classes overlap and which are unique
+  to each.
+- **Tree** — the subclass hierarchy, expandable.
+- **Graph Schema** — how the underlying database is structured (for the curious).
+- **Provenance** — a full timeline of every change to the registry.
+- **Register** — submit a new schema.
+
+Every view has download buttons. You can grab a single class, a whole schema,
+the entire registry, or a CSV diff between two schemas.
+
+---
+
+## Adding your own schema
+
+The easiest way, no setup required:
+
+1. Write your schema as a LinkML `.yml` file (see the
+   [LinkML tutorial](https://linkml.io/linkml/intro/tutorial01.html) or copy
+   `schemas/bbqs.yml` from this repo as a template).
+2. Go to the [Register tab](https://sensein.group/NeuroRegistry/) on the website.
+3. Paste your YAML, give it a name, click **Open GitHub Issue**.
+4. A GitHub Issue opens in a new tab, pre-filled. Click **Submit**.
+5. Within a couple of minutes, an automated workflow will:
+   - Validate your schema
+   - Add it to the registry graph
+   - Compute alignments against every other schema
+   - Bump the registry version
+   - Archive a permanent snapshot
+   - Comment on your issue with a link to your schema in the browser
+
+That's it. No installation, no pull request, no reviewers required.
+
+---
+
+## Running it locally (optional)
+
+Only needed if you want to develop the registry itself, or bulk-load schemas
+outside the web flow.
 
 ```bash
+git clone https://github.com/sensein/NeuroRegistry.git
+cd NeuroRegistry
 pip install -r requirements.txt
-uvicorn schema_registry:app --reload
+
+# 1. Seed with schema.org as the base vocabulary
+python neuro_registry/seed.py
+
+# 2. Load a schema
+python neuro_registry/ingest_linkml.py --file schemas/bbqs.yml
+
+# 3. Compute alignments
+python neuro_registry/align.py --source bbqs
+
+# 4. Export snapshot the frontend reads
+python neuro_registry/export_json.py --bump minor --schema bbqs
 ```
 
-Docs at `http://localhost:8000/docs`. Database persists to `./registry.lbug`.
-No server, no Docker.
+Then open `index.html` in a browser and you'll see the local snapshot.
 
 ---
 
-## Node model
+## What's in this repo
 
-All nodes share a **base identity** (conceptual inheritance — fields are
-repeated on each table since LadybugDB does not support table inheritance):
-
-| Field | Description |
-|---|---|
-| `uid` | UUID — LadybugDB primary key |
-| `iri` | Stable concept identifier (never changes across versions) |
-| `uri` | Versioned registry URI — `registry.sensein.io/obj/{id}/v/{semver}` |
-| `version` | Semver string |
-| `created_at` | ISO-8601 timestamp |
-
-### SchemaClass
-`name`, `definition`
-
-Relationships: `SUBCLASS_OF`, `MIXIN`, `SKOS_BROADER`, `SKOS_RELATED`,
-`HAS_PROPERTY`, `PRIOR_VERSION`, `PROV_GENERATED`, `FROM_SOURCE`
-
-### SchemaProperty
-`name`, `definition`, `datatype`, `range_uri`
-
-Relationships: `HAS_PROPERTY` (from SchemaClass), `PRIOR_VERSION_P`,
-`PROV_GENERATED_P`
-
-### SchemaRule
-Validation constraints live here — not on SchemaProperty.
-
-`name`, `rule_spec`, `units`, `min_val`, `max_val`, `pattern`,
-`multivalued`, `required`
-
-Relationships: `APPLIES_TO` → SchemaClass, `PRIOR_VERSION_R`,
-`PROV_GENERATED_R`
-
-### SchemaTransform
-`name`, `spec`
-
-### SchemaSource
-`label`, `mime_type`
-
-### SchemaActivity
-PROV-O activity. `activity`, `agent`, `started_at`
+```
+NeuroRegistry/
+├── index.html                     ← The website you see at sensein.group
+├── data/
+│   ├── registry.json              ← Current registry snapshot (auto-generated)
+│   ├── provenance.json            ← Full timeline of every change
+│   └── versions/                  ← Archived snapshot of every registry version
+├── schemas/                       ← Registered schemas (LinkML .yml files)
+│   └── bbqs.yml
+├── neuro_registry/                ← Python code
+│   ├── db.py                      ← Database setup
+│   ├── seed.py                    ← Loads schema.org as the base layer
+│   ├── ingest_linkml.py           ← Imports a .yml schema into the graph
+│   ├── align.py                   ← Computes alignments between schemas
+│   └── export_json.py             ← Exports the graph as registry.json
+├── .github/workflows/
+│   └── schema-submission.yml      ← The automation that runs on new submissions
+└── requirements.txt
+```
 
 ---
 
-## Versioning
+## Under the hood
 
-Append-only. A version bump:
-1. Creates a new node (new `uid`, new `uri`, same `iri`)
-2. Links new → old via `PRIOR_VERSION`
-3. Records a `SchemaActivity`
+Nothing exotic:
 
-Nothing is ever deleted.
+- **[LadybugDB](https://ladybugdb.com/)** — embedded graph database that stores
+  every class, property, and relationship. Runs as a Python package, no server.
+- **[LinkML](https://linkml.io/)** — the human-friendly schema format everyone
+  writes their vocabularies in.
+- **[sentence-transformers](https://sbert.net/)** — the local embedding model
+  (`all-MiniLM-L6-v2`) that powers semantic distance.
+- **Static HTML + GitHub Pages** — the website is one file, no framework.
+- **GitHub Actions** — the automation that runs on every schema submission.
 
----
-
-## Endpoints
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/health` | Node counts per type |
-| GET | `/schema/classes` | List all classes |
-| GET | `/schema/class/{id}` | All versions of a class |
-| GET | `/schema/class/{id}/properties` | Properties on a class |
-| POST | `/schema/class` | Create a class |
-| POST | `/schema/class/{id}/bump` | Bump version |
-| GET | `/schema/property/{id}` | All versions of a property |
-| POST | `/schema/property` | Create a property |
-| GET | `/schema/rule/{id}` | Get a rule |
-| POST | `/schema/rule` | Create a rule |
-| GET | `/schema/transform/{id}` | Get a transform |
-| POST | `/schema/transform` | Create a transform |
-| GET | `/provenance/class/{id}` | Provenance history |
-| GET | `/distance/{id1}/{id2}` | Distance stub (TBD) |
+Every design decision favors "nothing to run, nothing to maintain." The
+registry lives in a single GitHub repo. The website lives on GitHub Pages. The
+database is rebuilt fresh in CI from the source `.yml` files every time
+something changes.
 
 ---
 
-## Open questions
+## Contributing
 
-- **VOL sets** — design TBD
-- **Users / Org / Roles** — access control layer TBD
-- **Distance function** — semantic + structural metric, scientists to spec
-- **Rule spec format** — Python callable string vs SHACL vs JSON expression
-- **Transform spec format** — TBD with team
+- **Register a schema:** use the [Register tab](https://sensein.group/NeuroRegistry/) on the site.
+- **Report an issue or suggest a feature:** [open an issue](https://github.com/sensein/NeuroRegistry/issues/new).
+- **Improve the tooling:** PRs welcome, especially around the distance function.
+
+---
+
+## License
+
+CC0-1.0 — public domain. Fork it, remix it, run your own registry.

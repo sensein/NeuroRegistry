@@ -57,11 +57,12 @@ def _get_model():
             from sentence_transformers import SentenceTransformer
             _model = SentenceTransformer("all-MiniLM-L6-v2")
             click.echo("  Loaded sentence-transformers all-MiniLM-L6-v2")
-        except ImportError:
+        except Exception as e:
             _model = "fallback"
-            click.echo("  sentence-transformers not installed — "
-                       "falling back to difflib for name/desc similarity. "
-                       "Run: pip install sentence-transformers")
+            click.echo(f"  Could not load sentence-transformers ({type(e).__name__}) — "
+                       "falling back to difflib for name/desc similarity.")
+            click.echo("  Fix: pip install 'sentence-transformers>=2.7.0,<3.0.0'")
+            click.echo("       or:  brew install ffmpeg")
     return _model
 
 

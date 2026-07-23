@@ -535,12 +535,12 @@ def write_alignment(conn, uid_a: str, uid_b: str,
               help="Align this source against all others. "
                    "Default: align all source pairs.")
 @click.option("--db",        default=DB_PATH, show_default=True)
-@click.option("--threshold", default=0.5, show_default=True, type=float,
+@click.option("--threshold", default=0.8, show_default=True, type=float,
               help="Only write ALIGNED_TO edges where distance <= threshold. "
                    "Keeps the graph clean by excluding clearly unrelated pairs.")
-@click.option("--min-signal", default=0.4, show_default=True, type=float,
+@click.option("--min-signal", default=0.2, show_default=True, type=float,
               help="Skip pairs where no single signal exceeds this value. "
-                   "Prevents storing 'both are zero' non-matches that add noise.")
+                   "Prevents storing pure zero-signal non-matches that add noise.")
 @click.option("--registry-version", default="",
               help="Registry version to stamp on alignment edges.")
 @click.option("--dry-run",   is_flag=True,

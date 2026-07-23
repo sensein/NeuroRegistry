@@ -4,7 +4,7 @@
 
 🌐 **Live site:** [sensein.group/NeuroGhost](https://sensein.group/NeuroGhost/)
 
-<img width="1254" height="1254" alt="image" src="https://github.com/user-attachments/assets/de347260-aebb-4ee4-b844-53356ad44c5b" />
+<img width="1254" height="1254" alt="image" src="https://github.com/user-attachments/assets/e70a2916-acea-44bf-9f23-537f290d6f92" />
 
 ---
 

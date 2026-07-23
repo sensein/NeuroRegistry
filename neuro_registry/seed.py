@@ -189,13 +189,15 @@ def seed(db_path: str = "./registry.lbug",
             continue
         conn.execute("""
             CREATE (:SchemaClass {
-                uid:        $uid,
-                iri:        $iri,
-                uri:        $uri,
-                version:    $version,
-                created_at: $created_at,
-                name:       $name,
-                definition: $definition
+                uid:           $uid,
+                iri:           $iri,
+                uri:           $uri,
+                version:       $version,
+                created_at:    $created_at,
+                name:          $name,
+                definition:    $definition,
+                abstract:      false,
+                source_label:  'schema.org'
             })
         """, {**b,
               "name":       info["label"],
@@ -240,15 +242,18 @@ def seed(db_path: str = "./registry.lbug",
                 if not exists:
                     conn.execute("""
                         CREATE (:SchemaProperty {
-                            uid:        $uid,
-                            iri:        $iri,
-                            uri:        $uri,
-                            version:    $version,
-                            created_at: $created_at,
-                            name:       $name,
-                            definition: $definition,
-                            datatype:   $datatype,
-                            range_uri:  $range_uri
+                            uid:          $uid,
+                            iri:          $iri,
+                            uri:          $uri,
+                            version:      $version,
+                            created_at:   $created_at,
+                            name:         $name,
+                            definition:   $definition,
+                            datatype:     $datatype,
+                            range_uri:    $range_uri,
+                            multivalued:  false,
+                            required:     false,
+                            source_label: 'schema.org'
                         })
                     """, {**b,
                           "name":       prop["label"],

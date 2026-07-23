@@ -6,7 +6,6 @@ on:
 
 jobs:
   ingest:
-    # Only run if issue title starts with "schema-submission:"
     if: startsWith(github.event.issue.title, 'schema-submission:')
     runs-on: ubuntu-latest
     permissions:
@@ -25,68 +24,70 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Extract schema name from issue title
+      - name: Parse issue metadata
         id: meta
         run: |
           TITLE="${{ github.event.issue.title }}"
-          # title format: "schema-submission:my-schema-name"
           SCHEMA_NAME="${TITLE#schema-submission:}"
-          SCHEMA_NAME=$(echo "$SCHEMA_NAME" | tr -s ' ' | xargs | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
+          SCHEMA_NAME=$(echo "$SCHEMA_NAME" | xargs | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
           echo "schema_name=$SCHEMA_NAME" >> $GITHUB_OUTPUT
 
+          # Determine bump type:
+          # label "breaking" → major, default → minor
+          LABELS='${{ toJson(github.event.issue.labels.*.name) }}'
+          if echo "$LABELS" | grep -q "breaking"; then
+            echo "bump=major" >> $GITHUB_OUTPUT
+          else
+            echo "bump=minor" >> $GITHUB_OUTPUT
+          fi
+
       - name: Extract YAML from issue body
-        id: extract
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
+          SCHEMA_NAME: ${{ steps.meta.outputs.schema_name }}
         run: |
           python3 - << 'PYEOF'
           import os, re, sys
-
           body = os.environ["ISSUE_BODY"]
-
-          # Accept YAML fenced in ```yaml ... ``` or bare (no fence)
           fenced = re.search(r'```ya?ml\s*\n(.*?)```', body, re.DOTALL)
-          if fenced:
-              yaml_content = fenced.group(1)
-          else:
-              yaml_content = body.strip()
-
-          # Basic sanity check — must look like LinkML
+          yaml_content = fenced.group(1) if fenced else body.strip()
           if "classes:" not in yaml_content:
-              print("ERROR: issue body does not contain a valid LinkML schema (missing 'classes:' key).")
+              print("ERROR: missing 'classes:' key — not valid LinkML.")
               sys.exit(1)
-
-          schema_name = os.environ.get("SCHEMA_NAME", "unknown")
-          out_path = f"schemas/{schema_name}.yml"
+          name = os.environ["SCHEMA_NAME"]
           os.makedirs("schemas", exist_ok=True)
-          with open(out_path, "w") as f:
+          with open(f"schemas/{name}.yml", "w") as f:
               f.write(yaml_content)
-          print(f"Wrote {out_path}")
+          print(f"Wrote schemas/{name}.yml")
           PYEOF
-        env:
-          SCHEMA_NAME: ${{ steps.meta.outputs.schema_name }}
 
-      - name: Validate YAML parses as LinkML
+      - name: Validate YAML
         run: |
           python3 - << 'PYEOF'
           import yaml, sys
           name = "${{ steps.meta.outputs.schema_name }}"
-          path = f"schemas/{name}.yml"
-          with open(path) as f:
+          with open(f"schemas/{name}.yml") as f:
               data = yaml.safe_load(f)
-          required = ["classes", "slots"]
-          missing = [k for k in required if k not in data]
+          missing = [k for k in ["classes","slots"] if k not in data]
           if missing:
-              print(f"ERROR: schema missing required keys: {missing}")
+              print(f"ERROR: missing keys: {missing}")
               sys.exit(1)
-          print(f"Valid LinkML schema: {len(data.get('classes', {}))} classes, {len(data.get('slots', {}))} slots")
+          print(f"Valid: {len(data['classes'])} classes, {len(data['slots'])} slots")
           PYEOF
 
-      - name: Ingest schema into registry
+      - name: Seed schema.org (if DB not cached)
+        run: |
+          python neuro_registry/seed.py \
+            --db registry.lbug \
+            --registry-version 1.0.0
+
+      - name: Ingest schema
         run: |
           python neuro_registry/ingest_linkml.py \
             --file schemas/${{ steps.meta.outputs.schema_name }}.yml \
-            --db registry.lbug
+            --db registry.lbug \
+            --issue ${{ github.event.issue.number }} \
+            --agent "${{ github.event.issue.user.login }}"
 
       - name: Run alignment
         run: |
@@ -94,64 +95,66 @@ jobs:
             --source ${{ steps.meta.outputs.schema_name }} \
             --db registry.lbug
 
-      - name: Export registry snapshot to JSON
+      - name: Export + version registry
         run: |
           python neuro_registry/export_json.py \
             --db registry.lbug \
-            --out data/registry.json
+            --bump ${{ steps.meta.outputs.bump }} \
+            --issue ${{ github.event.issue.number }} \
+            --agent "${{ github.event.issue.user.login }}" \
+            --schema ${{ steps.meta.outputs.schema_name }}
 
-      - name: Commit schema file + updated data snapshot
+      - name: Commit all artifacts
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add schemas/${{ steps.meta.outputs.schema_name }}.yml data/registry.json
+          git add \
+            schemas/${{ steps.meta.outputs.schema_name }}.yml \
+            data/registry.json \
+            data/versions/ \
+            data/provenance.json
           git diff --cached --quiet || git commit -m \
-            "feat(schema): ingest ${{ steps.meta.outputs.schema_name }} from issue #${{ github.event.issue.number }}"
+            "feat(registry): ingest ${{ steps.meta.outputs.schema_name }} from issue #${{ github.event.issue.number }}"
           git push
 
-      - name: Comment on issue — success
+      - name: Comment success
         if: success()
         uses: actions/github-script@v7
         with:
           script: |
-            const name = "${{ steps.meta.outputs.schema_name }}";
+            const name    = "${{ steps.meta.outputs.schema_name }}";
             const pagesUrl = `https://${context.repo.owner}.github.io/${context.repo.repo}`;
             await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo:  context.repo.repo,
+              owner: context.repo.owner, repo: context.repo.repo,
               issue_number: context.issue.number,
               body: [
-                `✅ **Schema \`${name}\` ingested successfully.**`,
+                `✅ **\`${name}\` ingested successfully.**`,
                 ``,
-                `- Classes and properties have been added to the registry.`,
-                `- Alignment against existing schemas has been computed.`,
-                `- Registry snapshot updated at \`data/registry.json\`.`,
+                `- Classes, properties, and alignments committed.`,
+                `- Provenance logged to \`data/provenance.json\`.`,
+                `- Archived snapshot in \`data/versions/\`.`,
                 ``,
-                `Browse the updated schema at: ${pagesUrl}`,
+                `Browse: ${pagesUrl}`,
               ].join("\n"),
             });
             await github.rest.issues.update({
-              owner: context.repo.owner,
-              repo:  context.repo.repo,
-              issue_number: context.issue.number,
-              state: "closed",
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number, state: "closed",
             });
 
-      - name: Comment on issue — failure
+      - name: Comment failure
         if: failure()
         uses: actions/github-script@v7
         with:
           script: |
             await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo:  context.repo.repo,
+              owner: context.repo.owner, repo: context.repo.repo,
               issue_number: context.issue.number,
               body: [
-                `❌ **Schema ingestion failed.**`,
+                `❌ **Ingestion failed.**`,
                 ``,
-                `Please check that your issue body contains a valid LinkML YAML schema`,
-                `with both \`classes:\` and \`slots:\` keys, optionally fenced in \`\`\`yaml ... \`\`\`.`,
+                `Check that your YAML is valid LinkML with \`classes:\` and \`slots:\` keys.`,
                 ``,
-                `[View the workflow run for details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`,
+                `[View run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`,
               ].join("\n"),
             });

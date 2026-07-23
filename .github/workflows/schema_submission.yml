@@ -41,45 +41,91 @@ jobs:
             echo "bump=minor" >> $GITHUB_OUTPUT
           fi
 
-      - name: Extract YAML from issue body
+      - name: Extract and convert schema from issue body
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
           SCHEMA_NAME: ${{ steps.meta.outputs.schema_name }}
         run: |
           python3 - << 'PYEOF'
-          import os, re, sys
+          import os, re, sys, json
+          import yaml
+
           body = os.environ["ISSUE_BODY"]
-          fenced = re.search(r'```ya?ml\s*\n(.*?)```', body, re.DOTALL)
-          yaml_content = fenced.group(1) if fenced else body.strip()
-          if "classes:" not in yaml_content:
-              print("ERROR: missing 'classes:' key — not valid LinkML.")
-              sys.exit(1)
           name = os.environ["SCHEMA_NAME"]
+
+          # Detect format from the code-fence language tag:
+          #   ```linkml / ```yaml / ```yml  → already LinkML
+          #   ```json / ```json-schema      → JSON Schema, needs conversion
+          fenced = re.search(r'```([\w-]*)\s*\n(.*?)```', body, re.DOTALL)
+          if fenced:
+              lang    = (fenced.group(1) or "yaml").lower()
+              content = fenced.group(2).strip()
+          else:
+              lang    = "yaml"
+              content = body.strip()
+
+          json_schema_langs = {"json", "json-schema", "jsonschema"}
+          linkml_langs      = {"yaml", "yml", "linkml", ""}
+
           os.makedirs("schemas", exist_ok=True)
-          with open(f"schemas/{name}.yml", "w") as f:
-              f.write(yaml_content)
-          print(f"Wrote schemas/{name}.yml")
+          out_path = f"schemas/{name}.yml"
+
+          if lang in json_schema_langs:
+              print(f"Detected format: JSON Schema (lang={lang!r}) — converting to LinkML…")
+              sys.path.insert(0, ".")
+              from neuro_ghost.converters.from_jsonschema import convert as js2lm
+              try:
+                  data = json.loads(content)
+              except json.JSONDecodeError:
+                  data = yaml.safe_load(content)
+              linkml_dict = js2lm(data, name)
+              with open(out_path, "w") as f:
+                  yaml.dump(linkml_dict, f, default_flow_style=False,
+                            allow_unicode=True, sort_keys=False)
+              print(f"Converted → {out_path}  "
+                    f"({len(linkml_dict['classes'])} classes, "
+                    f"{len(linkml_dict['slots'])} slots)")
+          elif lang in linkml_langs or lang not in json_schema_langs:
+              print(f"Detected format: LinkML (lang={lang!r})")
+              with open(out_path, "w") as f:
+                  f.write(content)
+              print(f"Wrote {out_path}")
+          else:
+              print(f"ERROR: Unsupported schema format '{lang}'. "
+                    "Use ```yaml (LinkML) or ```json (JSON Schema).")
+              sys.exit(1)
           PYEOF
 
-      - name: Validate YAML
+      - name: Validate with linkml-runtime
         run: |
           python3 - << 'PYEOF'
-          import yaml, sys
+          import sys
+          import yaml
+
           name = "${{ steps.meta.outputs.schema_name }}"
-          with open(f"schemas/{name}.yml") as f:
-              data = yaml.safe_load(f)
-          if "classes" not in data:
-              print("ERROR: missing required key: 'classes'")
+          path = f"schemas/{name}.yml"
+
+          # Use linkml-runtime's SchemaView for authoritative LinkML validation.
+          # If the schema is structurally invalid, SchemaView raises on load.
+          try:
+              from linkml_runtime.utils.schemaview import SchemaView
+              sv = SchemaView(path)
+              all_classes = sv.all_classes()
+              all_slots   = sv.all_slots()
+          except Exception as e:
+              print(f"ERROR: Invalid LinkML schema — {e}")
               sys.exit(1)
-          n_slots = len(data.get("slots") or {})
-          # Count inline attributes across all classes
+
+          if not all_classes:
+              print("ERROR: Schema defines no classes.")
+              sys.exit(1)
+
           n_attrs = sum(
-              len(cls.get("attributes") or {})
-              for cls in (data.get("classes") or {}).values()
-              if isinstance(cls, dict)
+              len(cls.attributes or {})
+              for cls in all_classes.values()
           )
-          print(f"Valid: {len(data['classes'])} classes, "
-                f"{n_slots} top-level slots, {n_attrs} inline attributes")
+          print(f"Valid LinkML schema: {len(all_classes)} classes, "
+                f"{len(all_slots)} slots, {n_attrs} inline attributes")
           PYEOF
 
       - name: Seed schema.org (if DB not cached)

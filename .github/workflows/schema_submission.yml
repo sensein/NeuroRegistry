@@ -68,22 +68,29 @@ jobs:
           name = "${{ steps.meta.outputs.schema_name }}"
           with open(f"schemas/{name}.yml") as f:
               data = yaml.safe_load(f)
-          missing = [k for k in ["classes","slots"] if k not in data]
-          if missing:
-              print(f"ERROR: missing keys: {missing}")
+          if "classes" not in data:
+              print("ERROR: missing required key: 'classes'")
               sys.exit(1)
-          print(f"Valid: {len(data['classes'])} classes, {len(data['slots'])} slots")
+          n_slots = len(data.get("slots") or {})
+          # Count inline attributes across all classes
+          n_attrs = sum(
+              len(cls.get("attributes") or {})
+              for cls in (data.get("classes") or {}).values()
+              if isinstance(cls, dict)
+          )
+          print(f"Valid: {len(data['classes'])} classes, "
+                f"{n_slots} top-level slots, {n_attrs} inline attributes")
           PYEOF
 
       - name: Seed schema.org (if DB not cached)
         run: |
-          python neuro_registry/seed.py \
+          python neuro_ghost/seed.py \
             --db registry.lbug \
             --registry-version 1.0.0
 
       - name: Ingest schema
         run: |
-          python neuro_registry/ingest_linkml.py \
+          python neuro_ghost/ingest_linkml.py \
             --file schemas/${{ steps.meta.outputs.schema_name }}.yml \
             --db registry.lbug \
             --issue ${{ github.event.issue.number }} \
@@ -91,13 +98,13 @@ jobs:
 
       - name: Run alignment
         run: |
-          python neuro_registry/align.py \
+          python neuro_ghost/align.py \
             --source ${{ steps.meta.outputs.schema_name }} \
             --db registry.lbug
 
       - name: Export + version registry
         run: |
-          python neuro_registry/export_json.py \
+          python neuro_ghost/export_json.py \
             --db registry.lbug \
             --bump ${{ steps.meta.outputs.bump }} \
             --issue ${{ github.event.issue.number }} \

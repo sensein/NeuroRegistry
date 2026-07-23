@@ -428,7 +428,11 @@ function renderTable(){
     if(expandedUid===cls.uid){
       const dr=document.createElement("tr");dr.className="detail-row";const td=document.createElement("td");td.colSpan=4;
       const pH=cls.properties.length===0?'<div class="empty-inline">No properties.</div>':`<table class="prop-table"><thead><tr><td>Name</td><td>Type</td><td style="width:110px">Flags</td></tr></thead><tbody>${cls.properties.map(p=>`<tr><td>${p.name}</td><td class="iri">${p.datatype||p.range_uri||"—"}</td><td class="flags">${p.multivalued?'<span class="badge flag-multi">multi</span>':""}${p.required?'<span class="badge flag-req">req</span>':""}</td></tr>`).join("")}</tbody></table>`;
-      const aH=cls.alignments.length===0?'<div class="empty-inline">No alignments.</div>':`<table class="prop-table"><thead><tr><td>Aligned class</td><td>Source</td><td>Distance</td><td>Method</td></tr></thead><tbody>${cls.alignments.map(a=>{const d=recompute(a);return`<tr><td>${a.target_name}</td><td>${srcBadge(a.target_source)}</td><td>${distBadge(d)}</td><td class="iri">${a.method}</td></tr>`;}).join("")}</tbody></table>`;
+      const sortedAlns=[...cls.alignments].map(a=>({...a,_d:recompute(a)})).filter(a=>a._d<1.0).sort((x,y)=>x._d-y._d);
+      const showAll=window._showAllAlns===cls.uid;
+      const visibleAlns=showAll?sortedAlns:sortedAlns.slice(0,10);
+      const hiddenCount=sortedAlns.length-visibleAlns.length;
+      const aH=sortedAlns.length===0?'<div class="empty-inline">No meaningful alignments — this class appears unique to its source.</div>':`<table class="prop-table"><thead><tr><td>Aligned class</td><td>Source</td><td>Distance</td><td>Method</td></tr></thead><tbody>${visibleAlns.map(a=>`<tr><td>${a.target_name}</td><td>${srcBadge(a.target_source)}</td><td>${distBadge(a._d)}</td><td class="iri">${a.method}</td></tr>`).join("")}</tbody></table>${hiddenCount>0?`<button class="export-btn" style="margin-top:8px" onclick="event.stopPropagation();window._showAllAlns='${cls.uid}';renderTable()">Show ${hiddenCount} more</button>`:showAll&&sortedAlns.length>10?`<button class="export-btn" style="margin-top:8px" onclick="event.stopPropagation();window._showAllAlns=null;renderTable()">Show fewer</button>`:""}`;
       const par=(cls.subclass_of||[]).length?cls.subclass_of.map(i=>`<span class="iri">${i}</span>`).join(""):'<div class="empty-inline">Root class.</div>';
       td.innerHTML=`<div class="detail-panel ${srcCls(cls.source)}">
         <div class="detail-header"><div class="detail-header-left"><h3>${cls.name}</h3>${srcBadge(cls.source)}</div>
@@ -441,7 +445,7 @@ function renderTable(){
         <div class="iri-row" onclick="event.stopPropagation();cpText('${cls.iri||""}')" title="Click to copy IRI"><span class="label">IRI</span>${cls.iri||"—"}</div>
         <h4>Subclass of</h4><div class="parent-list">${par}</div>
         <h4>Properties <span class="n">${cls.properties.length}</span></h4>${pH}
-        <h4>Alignments <span class="n">${cls.alignments.length}</span></h4>${aH}
+        <h4>Alignments <span class="n">${sortedAlns.length}${cls.alignments.length!==sortedAlns.length?` / ${cls.alignments.length}`:""}</span></h4>${aH}
       </div>`;
       dr.appendChild(td);tbody.appendChild(dr);
     }

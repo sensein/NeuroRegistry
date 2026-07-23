@@ -98,60 +98,68 @@ the entire registry, or a CSV diff between two schemas.
 
 ---
 
-## Read API
-
-The registry data is served as static JSON from GitHub Pages — no API key, no
-rate limits, CORS open by default. Every GET request is just a direct file
-fetch.
+## API Reference
 
 **Base URL:** `https://sensein.group/NeuroGhost`
+
+The registry exposes two kinds of endpoints:
+
+| Type | Transport | Auth | Status |
+|------|-----------|------|--------|
+| Read (schemas, alignments, provenance) | Static JSON via GitHub Pages | None | ✅ Live |
+| Transform (field mapping between schemas) | Serverless function (planned) | None | 🔜 Planned |
+
+CORS is open on all endpoints. No API key required.
 
 ---
 
 ### `GET /data/registry.json`
 
-The full registry: all sources, classes, properties, and cross-schema
-alignments at the current version.
+Returns the full registry at the current version: all sources, classes,
+properties, and pre-computed cross-schema alignments.
 
 ```bash
 curl https://sensein.group/NeuroGhost/data/registry.json
 ```
 
-**Response shape:**
+**Response**
 ```json
 {
-  "registry_version": "1.4.0",
+  "registry_version": "1.7.0",
   "generated_at": "2026-07-23T12:40:24Z",
   "sources": [
-    { "label": "bbqs", "version": "1.0.0", "class_count": 29 }
+    { "label": "bbqs",  "version": "1.0.0", "class_count": 29 },
+    { "label": "bids",  "version": "1.9.0", "class_count": 1  },
+    { "label": "dandi", "version": "0.6.8", "class_count": 20 },
+    { "label": "nwb",   "version": "2.7.0", "class_count": 53 }
   ],
   "classes": [
     {
-      "uid": "...",
-      "iri": "https://registry.sensein.io/obj/Person",
-      "name": "Person",
-      "definition": "A human being.",
-      "abstract": false,
-      "source": "bbqs",
+      "uid":        "8003dcad-...",
+      "iri":        "https://registry.sensein.io/obj/Subject",
+      "name":       "Subject",
+      "definition": "A research participant.",
+      "abstract":   false,
+      "source":     "bbqs",
       "properties": [
         {
-          "uid": "...",
-          "name": "age",
+          "uid":        "807f8fec-...",
+          "name":       "age",
           "definition": "Age in years.",
-          "datatype": "xsd:integer",
+          "datatype":   "xsd:integer",
           "multivalued": false,
-          "required": false,
-          "source": "bbqs"
+          "required":   false,
+          "source":     "bbqs"
         }
       ],
       "alignments": [
         {
-          "target_uid": "...",
-          "target_name": "Subject",
-          "target_source": "nwb",
-          "distance": 0.31,
-          "method": "composite",
-          "scores": { "iri": 0.0, "name": 0.28, "desc": 0.44, "slot": 0.0 }
+          "target_uid":    "f4f8e4a4-...",
+          "target_name":   "Participant",
+          "target_source": "bids",
+          "distance":      0.12,
+          "method":        "composite",
+          "scores": { "iri": 0.0, "name": 0.08, "desc": 0.19, "slot": 0.0 }
         }
       ]
     }
@@ -159,28 +167,28 @@ curl https://sensein.group/NeuroGhost/data/registry.json
 }
 ```
 
-`distance` is between **0.0** (identical) and **1.0** (unrelated).
+`distance` ranges from **0.0** (identical) to **1.0** (unrelated).
 
 ---
 
 ### `GET /data/versions/{version}.json`
 
-A frozen snapshot of the registry at a specific version. Snapshots are
-permanent and never change.
+Frozen snapshot of the registry at a specific version. Snapshots never change.
 
 ```bash
 curl https://sensein.group/NeuroGhost/data/versions/1.2.0.json
 ```
 
-Same shape as `registry.json`. Available versions are listed in the
-`registry_version` field of the current registry file.
+Same shape as `registry.json`. To list available versions, check the
+`registry_version` field of the live registry and the `data/versions/`
+directory.
 
 ---
 
 ### `GET /data/provenance.json`
 
-A timestamped changelog — every schema ingested, who submitted it, and which
-registry version it produced.
+Changelog — every schema ingestion: who submitted it, when, and which registry
+version it produced.
 
 ```bash
 curl https://sensein.group/NeuroGhost/data/provenance.json
@@ -188,36 +196,101 @@ curl https://sensein.group/NeuroGhost/data/provenance.json
 
 ---
 
-### Filtering in the browser or client
+### Client-side filtering
 
-Because these are static files there are no server-side query parameters.
-Filter in your client:
+There are no server-side query parameters (static files). Filter in your
+client after fetching:
 
 ```js
 const reg = await fetch("https://sensein.group/NeuroGhost/data/registry.json")
               .then(r => r.json());
 
-// All classes from a specific schema
+// All classes from one schema
 const bbqs = reg.classes.filter(c => c.source === "bbqs");
 
-// Classes with a close alignment to something (distance < 0.4)
-const aligned = reg.classes.flatMap(c =>
+// Close alignments across any two schemas (distance < 0.35)
+const pairs = reg.classes.flatMap(c =>
   c.alignments
-    .filter(a => a.distance < 0.4)
-    .map(a => ({ from: c.name, to: a.target_name, distance: a.distance }))
+    .filter(a => a.distance < 0.35)
+    .map(a => ({ from: `${c.source}/${c.name}`, to: `${a.target_source}/${a.target_name}`, distance: a.distance }))
 );
 ```
 
 ---
 
-### Transform API (future work)
+### `GET /api/transform` — field mapping *(planned)*
 
-Converting data from one schema's format to another (e.g. BBQS → NWB) requires
-running code against the alignment map, which a static file API cannot do.
-This will need a lightweight compute layer — likely a
-[Cloudflare Worker](https://workers.cloudflare.com/) or similar serverless
-function that reads the static registry JSON and applies a field-mapping based
-on the alignment graph. Not yet implemented.
+Returns the computed field-to-field mapping between two schemas, derived from
+the alignment graph. No data is sent — this is purely a schema-level lookup.
+
+```
+GET /api/transform?from=bbqs&to=bids
+```
+
+**Planned response**
+```json
+{
+  "from": "bbqs",
+  "to":   "bids",
+  "mappings": [
+    {
+      "from_class":    "Subject",
+      "to_class":      "Participant",
+      "distance":      0.12,
+      "field_mappings": [
+        { "from_field": "age",        "to_field": "age",          "confidence": 0.97 },
+        { "from_field": "species",    "to_field": "species",      "confidence": 0.91 },
+        { "from_field": "subject_id", "to_field": "participant_id","confidence": 0.85 }
+      ]
+    }
+  ]
+}
+```
+
+Because the alignment data is already in `registry.json`, this endpoint can be
+pre-computed at export time and served as a static file — no compute layer
+needed.
+
+---
+
+### `POST /api/transform` — data transform *(planned)*
+
+Send a dataset in one schema's format; receive it mapped to another. Unlike the
+GET above, this requires a live compute layer (a serverless function that reads
+the field-mapping and rewrites the payload).
+
+```bash
+curl -X POST https://sensein.group/NeuroGhost/api/transform \
+  -H "Content-Type: application/json" \
+  -d '{
+    "from": "bbqs",
+    "to":   "bids",
+    "data": {
+      "subject_id": "sub-01",
+      "age": 24,
+      "species": "Homo sapiens"
+    }
+  }'
+```
+
+**Planned response**
+```json
+{
+  "from": "bbqs",
+  "to":   "bids",
+  "result": {
+    "participant_id": "sub-01",
+    "age": 24,
+    "species": "Homo sapiens"
+  },
+  "unmapped_fields": [],
+  "warnings": []
+}
+```
+
+This will be implemented as a lightweight serverless function (Cloudflare Worker
+or equivalent) that reads the static registry alignment map and applies field
+renaming. Not yet live.
 
 ---
 

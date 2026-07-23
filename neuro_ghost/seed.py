@@ -211,9 +211,11 @@ def seed(db_path: str = "./registry.lbug",
                 continue
             if dry_run:
                 continue
+            # Only link if BOTH nodes already exist — don't create orphan parent nodes
             conn.execute("""
                 MATCH (c:SchemaClass {iri: $ciri}),
                       (p:SchemaClass {iri: $piri})
+                WHERE p.source_label IS NOT NULL AND p.source_label <> ''
                 MERGE (c)-[:SUBCLASS_OF]->(p)
             """, {"ciri": info["iri"],
                   "piri": f"https://schema.org/{parent_name}"})

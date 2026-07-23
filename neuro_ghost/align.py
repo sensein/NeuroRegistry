@@ -412,6 +412,8 @@ def load_classes(conn, source_label: str | None = None) -> list[dict]:
 
     classes = []
     for uid, iri, name, defn, src, cid in rows:
+        if not src:  # skip nodes with no source_label — orphaned from bad ingest
+            continue
         # Get property IRIs for slot Jaccard scoring
         slot_iris = [
             r[0] for r in conn.execute("""

@@ -28,5 +28,20 @@
       "sources_total": 1
     },
     "archive_path": "data/versions/1.1.0.json"
+  },
+  {
+    "registry_version": "1.2.0",
+    "previous_version": "1.1.0",
+    "timestamp": "2026-07-23T01:48:23.732395+00:00",
+    "bump": "minor",
+    "trigger": "manual",
+    "issue_number": "",
+    "agent": "github-actions",
+    "schema_ingested": "bbqs",
+    "stats": {
+      "classes_total": 61,
+      "sources_total": 1
+    },
+    "archive_path": "data/versions/1.2.0.json"
   }
 ]

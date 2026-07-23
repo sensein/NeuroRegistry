@@ -1,0 +1,75 @@
+classes:
+  Instrument:
+    class_uri: https://aind-data-schema.readthedocs.io/en/stable/#Instrument
+    description: AIND instrument / rig.
+    slots:
+    - instrument__instrument_id
+    - instrument__instrument_type
+  Session:
+    class_uri: https://aind-data-schema.readthedocs.io/en/stable/#Session
+    description: AIND acquisition session.
+    slots:
+    - session__session_start_time
+    - session__session_end_time
+    - session__experimenter_full_name
+    - session__rig_id
+  Subject:
+    class_uri: https://aind-data-schema.readthedocs.io/en/stable/#Subject
+    description: AIND subject metadata.
+    slots:
+    - subject__subject_id
+    - subject__sex
+    - subject__date_of_birth
+    - subject__species
+    - subject__genotype
+default_prefix: aind
+default_range: string
+description: Allen Institute for Neural Dynamics data schema.
+id: https://aind-data-schema.readthedocs.io/en/stable/
+imports:
+- linkml:types
+license: MIT
+name: aind
+prefixes:
+  aind: https://aind-data-schema.readthedocs.io/en/stable/
+  linkml: https://w3id.org/linkml/
+  schema: https://schema.org/
+  xsd: http://www.w3.org/2001/XMLSchema#
+slots:
+  instrument__instrument_id:
+    description: Instrument ID
+    range: string
+  instrument__instrument_type:
+    description: Instrument type
+    range: string
+  session__experimenter_full_name:
+    description: Experimenter name
+    multivalued: true
+    range: string
+  session__rig_id:
+    description: Rig ID
+    range: string
+  session__session_end_time:
+    description: Session end
+    range: datetime
+  session__session_start_time:
+    description: Session start
+    range: datetime
+  subject__date_of_birth:
+    description: Date of birth
+    range: date
+  subject__genotype:
+    description: Genotype
+    range: string
+  subject__sex:
+    description: Biological sex
+    range: string
+  subject__species:
+    description: Species
+    range: string
+  subject__subject_id:
+    description: Subject ID
+    range: string
+    slot_uri: schema:identifier
+title: AIND Data Schema
+version: 1.0.0

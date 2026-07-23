@@ -1,0 +1,1345 @@
+classes:
+  MRIFatSuppressionTechnique:
+    class_uri: https://openminds.ebrains.eu/core/MRIFatSuppressionTechnique
+    description: null
+    slots:
+    - MRIFatSuppressionTechnique__definition
+    - MRIFatSuppressionTechnique__description
+    - MRIFatSuppressionTechnique__name
+    - MRIFatSuppressionTechnique__otherCrossReference
+    - MRIFatSuppressionTechnique__otherOntologyIdentifier
+    - MRIFatSuppressionTechnique__preferredCrossReference
+    - MRIFatSuppressionTechnique__preferredOntologyIdentifier
+    - MRIFatSuppressionTechnique__synonym
+  MRIParallelAcquisitionTechnique:
+    class_uri: https://openminds.ebrains.eu/core/MRIParallelAcquisitionTechnique
+    description: null
+    slots:
+    - MRIParallelAcquisitionTechnique__definition
+    - MRIParallelAcquisitionTechnique__description
+    - MRIParallelAcquisitionTechnique__name
+    - MRIParallelAcquisitionTechnique__otherCrossReference
+    - MRIParallelAcquisitionTechnique__otherOntologyIdentifier
+    - MRIParallelAcquisitionTechnique__preferredCrossReference
+    - MRIParallelAcquisitionTechnique__preferredOntologyIdentifier
+    - MRIParallelAcquisitionTechnique__synonym
+  MRIPulseSequence:
+    class_uri: https://openminds.ebrains.eu/core/MRIPulseSequence
+    description: null
+    slots:
+    - MRIPulseSequence__definition
+    - MRIPulseSequence__description
+    - MRIPulseSequence__name
+    - MRIPulseSequence__otherCrossReference
+    - MRIPulseSequence__otherOntologyIdentifier
+    - MRIPulseSequence__preferredCrossReference
+    - MRIPulseSequence__preferredOntologyIdentifier
+    - MRIPulseSequence__synonym
+  MRISpoilingTechnique:
+    class_uri: https://openminds.ebrains.eu/core/MRISpoilingTechnique
+    description: null
+    slots:
+    - MRISpoilingTechnique__definition
+    - MRISpoilingTechnique__description
+    - MRISpoilingTechnique__name
+    - MRISpoilingTechnique__otherCrossReference
+    - MRISpoilingTechnique__otherOntologyIdentifier
+    - MRISpoilingTechnique__preferredCrossReference
+    - MRISpoilingTechnique__preferredOntologyIdentifier
+    - MRISpoilingTechnique__synonym
+  MRIWeighting:
+    class_uri: https://openminds.ebrains.eu/core/MRIWeighting
+    description: null
+    slots:
+    - MRIWeighting__definition
+    - MRIWeighting__description
+    - MRIWeighting__name
+    - MRIWeighting__otherCrossReference
+    - MRIWeighting__otherOntologyIdentifier
+    - MRIWeighting__preferredCrossReference
+    - MRIWeighting__preferredOntologyIdentifier
+    - MRIWeighting__synonym
+  accessChannel:
+    class_uri: https://openminds.ebrains.eu/core/accessChannel
+    description: null
+    slots:
+    - accessChannel__definition
+    - accessChannel__description
+    - accessChannel__name
+    - accessChannel__otherCrossReference
+    - accessChannel__otherOntologyIdentifier
+    - accessChannel__preferredCrossReference
+    - accessChannel__preferredOntologyIdentifier
+    - accessChannel__synonym
+  accessEligibilityType:
+    class_uri: https://openminds.ebrains.eu/core/accessEligibilityType
+    description: null
+    slots:
+    - accessEligibilityType__definition
+    - accessEligibilityType__description
+    - accessEligibilityType__name
+    - accessEligibilityType__otherCrossReference
+    - accessEligibilityType__otherOntologyIdentifier
+    - accessEligibilityType__preferredCrossReference
+    - accessEligibilityType__preferredOntologyIdentifier
+    - accessEligibilityType__synonym
+  accessForm:
+    class_uri: https://openminds.ebrains.eu/core/accessForm
+    description: null
+    slots:
+    - accessForm__definition
+    - accessForm__description
+    - accessForm__name
+    - accessForm__otherCrossReference
+    - accessForm__otherOntologyIdentifier
+    - accessForm__preferredCrossReference
+    - accessForm__preferredOntologyIdentifier
+    - accessForm__synonym
+  amountOfChemical:
+    class_uri: https://openminds.ebrains.eu/core/amountOfChemical
+    description: Structured information about the amount of a given chemical that
+      was used.
+    slots:
+    - amountOfChemical__amount
+    - amountOfChemical__chemicalProduct
+  chemicalMixture:
+    class_uri: https://openminds.ebrains.eu/core/chemicalMixture
+    description: Structured information about a mixture of chemical substances.
+    slots:
+    - chemicalMixture__additionalRemarks
+    - chemicalMixture__hasPart
+    - chemicalMixture__name
+    - chemicalMixture__productSource
+    - chemicalMixture__type
+  chemicalSubstance:
+    class_uri: https://openminds.ebrains.eu/core/chemicalSubstance
+    description: Structured information about a chemical substance.
+    slots:
+    - chemicalSubstance__additionalRemarks
+    - chemicalSubstance__lookupLabel
+    - chemicalSubstance__molecularEntity
+    - chemicalSubstance__productSource
+    - chemicalSubstance__purity
+  dataAnalysis:
+    class_uri: https://openminds.ebrains.eu/core/dataAnalysis
+    description: Structured information on inspecting, cleansing, transforming, and
+      modelling data.
+    slots:
+    - dataAnalysis__customPropertySet
+    - dataAnalysis__description
+    - dataAnalysis__endTime
+    - dataAnalysis__environment
+    - dataAnalysis__input
+    - dataAnalysis__launchConfiguration
+    - dataAnalysis__lookupLabel
+    - dataAnalysis__output
+    - dataAnalysis__performedBy
+    - dataAnalysis__recipe
+    - dataAnalysis__resourceUsage
+    - dataAnalysis__startTime
+    - dataAnalysis__startedBy
+    - dataAnalysis__status
+    - dataAnalysis__studyTarget
+    - dataAnalysis__tag
+    - dataAnalysis__technique
+    - dataAnalysis__wasInformedBy
+  dataCopy:
+    class_uri: https://openminds.ebrains.eu/core/dataCopy
+    description: null
+    slots:
+    - dataCopy__customPropertySet
+    - dataCopy__description
+    - dataCopy__endTime
+    - dataCopy__environment
+    - dataCopy__input
+    - dataCopy__launchConfiguration
+    - dataCopy__lookupLabel
+    - dataCopy__output
+    - dataCopy__performedBy
+    - dataCopy__recipe
+    - dataCopy__resourceUsage
+    - dataCopy__startTime
+    - dataCopy__startedBy
+    - dataCopy__status
+    - dataCopy__studyTarget
+    - dataCopy__tag
+    - dataCopy__technique
+    - dataCopy__wasInformedBy
+  deployedInterface:
+    class_uri: https://openminds.ebrains.eu/core/deployedInterface
+    description: null
+    slots:
+    - deployedInterface__accessibility
+    - deployedInterface__entryPoint
+    - deployedInterface__interface
+  environment:
+    class_uri: https://openminds.ebrains.eu/core/environment
+    description: Structured information on the computer system or set of systems in
+      which a computation is deployed and executed.
+    slots:
+    - environment__configuration
+    - environment__description
+    - environment__hardware
+    - environment__name
+    - environment__software
+  genericComputation:
+    class_uri: https://openminds.ebrains.eu/core/genericComputation
+    description: Structured information about a computation whose type is unknown
+      or unspecified.
+    slots:
+    - genericComputation__customPropertySet
+    - genericComputation__description
+    - genericComputation__endTime
+    - genericComputation__environment
+    - genericComputation__input
+    - genericComputation__launchConfiguration
+    - genericComputation__lookupLabel
+    - genericComputation__output
+    - genericComputation__performedBy
+    - genericComputation__recipe
+    - genericComputation__resourceUsage
+    - genericComputation__startTime
+    - genericComputation__startedBy
+    - genericComputation__status
+    - genericComputation__studyTarget
+    - genericComputation__tag
+    - genericComputation__technique
+    - genericComputation__wasInformedBy
+  hardwareSystem:
+    class_uri: https://openminds.ebrains.eu/core/hardwareSystem
+    description: Structured information about computing hardware.
+    slots:
+    - hardwareSystem__description
+    - hardwareSystem__name
+    - hardwareSystem__versionIdentifier
+  launchConfiguration:
+    class_uri: https://openminds.ebrains.eu/core/launchConfiguration
+    description: Structured information about the launch of a computational process.
+    slots:
+    - launchConfiguration__argument
+    - launchConfiguration__description
+    - launchConfiguration__environmentVariable
+    - launchConfiguration__executable
+    - launchConfiguration__name
+  modelValidation:
+    class_uri: https://openminds.ebrains.eu/core/modelValidation
+    description: Structured information about a process of validating a computational
+      model.
+    slots:
+    - modelValidation__customPropertySet
+    - modelValidation__description
+    - modelValidation__endTime
+    - modelValidation__environment
+    - modelValidation__input
+    - modelValidation__launchConfiguration
+    - modelValidation__lookupLabel
+    - modelValidation__output
+    - modelValidation__performedBy
+    - modelValidation__recipe
+    - modelValidation__resourceUsage
+    - modelValidation__score
+    - modelValidation__startTime
+    - modelValidation__startedBy
+    - modelValidation__status
+    - modelValidation__studyTarget
+    - modelValidation__tag
+    - modelValidation__technique
+    - modelValidation__wasInformedBy
+  productSource:
+    class_uri: https://openminds.ebrains.eu/core/productSource
+    description: Structured information about the source of a chemical substance or
+      mixture.
+    slots:
+    - productSource__digitalIdentifier
+    - productSource__identifier
+    - productSource__productName
+    - productSource__provider
+    - productSource__purity
+default_prefix: openminds
+default_range: string
+description: Open Metadata Initiative for Neuroscience Data Structures.
+id: https://openminds.ebrains.eu/
+imports:
+- linkml:types
+license: MIT
+name: openminds
+prefixes:
+  linkml: https://w3id.org/linkml/
+  openminds: https://openminds.ebrains.eu/
+  schema: https://schema.org/
+  xsd: http://www.w3.org/2001/XMLSchema#
+slots:
+  MRIFatSuppressionTechnique__definition:
+    description: Short, but precise statement of the meaning of a word, word group,
+      sign or a symbol.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/definition
+  MRIFatSuppressionTechnique__description:
+    description: Longer statement or account giving the characteristics of someone
+      or something.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/description
+  MRIFatSuppressionTechnique__name:
+    description: Word or phrase that constitutes the distinctive designation of a
+      being or thing.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/name
+  MRIFatSuppressionTechnique__otherCrossReference:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/otherCrossReference
+  MRIFatSuppressionTechnique__otherOntologyIdentifier:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/otherOntologyIdentifier
+  MRIFatSuppressionTechnique__preferredCrossReference:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/preferredCrossReference
+  MRIFatSuppressionTechnique__preferredOntologyIdentifier:
+    description: Persistent identifier of a preferred ontological term.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/preferredOntologyIdentifier
+  MRIFatSuppressionTechnique__synonym:
+    description: Words or expressions used in the same language that have the same
+      or nearly the same meaning in some or all senses.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/synonym
+  MRIParallelAcquisitionTechnique__definition:
+    description: Short, but precise statement of the meaning of a word, word group,
+      sign or a symbol.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/definition
+  MRIParallelAcquisitionTechnique__description:
+    description: Longer statement or account giving the characteristics of someone
+      or something.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/description
+  MRIParallelAcquisitionTechnique__name:
+    description: Word or phrase that constitutes the distinctive designation of a
+      being or thing.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/name
+  MRIParallelAcquisitionTechnique__otherCrossReference:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/otherCrossReference
+  MRIParallelAcquisitionTechnique__otherOntologyIdentifier:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/otherOntologyIdentifier
+  MRIParallelAcquisitionTechnique__preferredCrossReference:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/preferredCrossReference
+  MRIParallelAcquisitionTechnique__preferredOntologyIdentifier:
+    description: Persistent identifier of a preferred ontological term.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/preferredOntologyIdentifier
+  MRIParallelAcquisitionTechnique__synonym:
+    description: Words or expressions used in the same language that have the same
+      or nearly the same meaning in some or all senses.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/synonym
+  MRIPulseSequence__definition:
+    description: Short, but precise statement of the meaning of a word, word group,
+      sign or a symbol.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/definition
+  MRIPulseSequence__description:
+    description: Longer statement or account giving the characteristics of someone
+      or something.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/description
+  MRIPulseSequence__name:
+    description: Word or phrase that constitutes the distinctive designation of a
+      being or thing.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/name
+  MRIPulseSequence__otherCrossReference:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/otherCrossReference
+  MRIPulseSequence__otherOntologyIdentifier:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/otherOntologyIdentifier
+  MRIPulseSequence__preferredCrossReference:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/preferredCrossReference
+  MRIPulseSequence__preferredOntologyIdentifier:
+    description: Persistent identifier of a preferred ontological term.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/preferredOntologyIdentifier
+  MRIPulseSequence__synonym:
+    description: Words or expressions used in the same language that have the same
+      or nearly the same meaning in some or all senses.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/synonym
+  MRISpoilingTechnique__definition:
+    description: Short, but precise statement of the meaning of a word, word group,
+      sign or a symbol.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/definition
+  MRISpoilingTechnique__description:
+    description: Longer statement or account giving the characteristics of someone
+      or something.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/description
+  MRISpoilingTechnique__name:
+    description: Word or phrase that constitutes the distinctive designation of a
+      being or thing.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/name
+  MRISpoilingTechnique__otherCrossReference:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/otherCrossReference
+  MRISpoilingTechnique__otherOntologyIdentifier:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/otherOntologyIdentifier
+  MRISpoilingTechnique__preferredCrossReference:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/preferredCrossReference
+  MRISpoilingTechnique__preferredOntologyIdentifier:
+    description: Persistent identifier of a preferred ontological term.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/preferredOntologyIdentifier
+  MRISpoilingTechnique__synonym:
+    description: Words or expressions used in the same language that have the same
+      or nearly the same meaning in some or all senses.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/synonym
+  MRIWeighting__definition:
+    description: Short, but precise statement of the meaning of a word, word group,
+      sign or a symbol.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/definition
+  MRIWeighting__description:
+    description: Longer statement or account giving the characteristics of someone
+      or something.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/description
+  MRIWeighting__name:
+    description: Word or phrase that constitutes the distinctive designation of a
+      being or thing.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/name
+  MRIWeighting__otherCrossReference:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/otherCrossReference
+  MRIWeighting__otherOntologyIdentifier:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/otherOntologyIdentifier
+  MRIWeighting__preferredCrossReference:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/preferredCrossReference
+  MRIWeighting__preferredOntologyIdentifier:
+    description: Persistent identifier of a preferred ontological term.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/preferredOntologyIdentifier
+  MRIWeighting__synonym:
+    description: Words or expressions used in the same language that have the same
+      or nearly the same meaning in some or all senses.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/synonym
+  accessChannel__definition:
+    description: Short, but precise statement of the meaning of a word, word group,
+      sign or a symbol.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/definition
+  accessChannel__description:
+    description: Longer statement or account giving the characteristics of someone
+      or something.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/description
+  accessChannel__name:
+    description: Word or phrase that constitutes the distinctive designation of a
+      being or thing.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/name
+  accessChannel__otherCrossReference:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/otherCrossReference
+  accessChannel__otherOntologyIdentifier:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/otherOntologyIdentifier
+  accessChannel__preferredCrossReference:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/preferredCrossReference
+  accessChannel__preferredOntologyIdentifier:
+    description: Persistent identifier of a preferred ontological term.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/preferredOntologyIdentifier
+  accessChannel__synonym:
+    description: Words or expressions used in the same language that have the same
+      or nearly the same meaning in some or all senses.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/synonym
+  accessEligibilityType__definition:
+    description: Short, but precise statement of the meaning of a word, word group,
+      sign or a symbol.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/definition
+  accessEligibilityType__description:
+    description: Longer statement or account giving the characteristics of someone
+      or something.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/description
+  accessEligibilityType__name:
+    description: Word or phrase that constitutes the distinctive designation of a
+      being or thing.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/name
+  accessEligibilityType__otherCrossReference:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/otherCrossReference
+  accessEligibilityType__otherOntologyIdentifier:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/otherOntologyIdentifier
+  accessEligibilityType__preferredCrossReference:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/preferredCrossReference
+  accessEligibilityType__preferredOntologyIdentifier:
+    description: Persistent identifier of a preferred ontological term.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/preferredOntologyIdentifier
+  accessEligibilityType__synonym:
+    description: Words or expressions used in the same language that have the same
+      or nearly the same meaning in some or all senses.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/synonym
+  accessForm__definition:
+    description: Short, but precise statement of the meaning of a word, word group,
+      sign or a symbol.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/definition
+  accessForm__description:
+    description: Longer statement or account giving the characteristics of someone
+      or something.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/description
+  accessForm__name:
+    description: Word or phrase that constitutes the distinctive designation of a
+      being or thing.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/name
+  accessForm__otherCrossReference:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/otherCrossReference
+  accessForm__otherOntologyIdentifier:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/otherOntologyIdentifier
+  accessForm__preferredCrossReference:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/preferredCrossReference
+  accessForm__preferredOntologyIdentifier:
+    description: Persistent identifier of a preferred ontological term.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/preferredOntologyIdentifier
+  accessForm__synonym:
+    description: Words or expressions used in the same language that have the same
+      or nearly the same meaning in some or all senses.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/synonym
+  amountOfChemical__amount:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/amount
+  amountOfChemical__chemicalProduct:
+    description: ''
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/chemicalProduct
+  chemicalMixture__additionalRemarks:
+    description: Mention of what deserves additional attention or notice.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/additionalRemarks
+  chemicalMixture__hasPart:
+    description: ''
+    multivalued: true
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/hasPart
+  chemicalMixture__name:
+    description: Word or phrase that constitutes the distinctive designation of a
+      being or thing.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/name
+  chemicalMixture__productSource:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/productSource
+  chemicalMixture__type:
+    description: Distinct class to which a group of entities or concepts with similar
+      characteristics or attributes belong to.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/type
+  chemicalSubstance__additionalRemarks:
+    description: Mention of what deserves additional attention or notice.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/additionalRemarks
+  chemicalSubstance__lookupLabel:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/lookupLabel
+  chemicalSubstance__molecularEntity:
+    description: ''
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/molecularEntity
+  chemicalSubstance__productSource:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/productSource
+  chemicalSubstance__purity:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/purity
+  dataAnalysis__customPropertySet:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/customPropertySet
+  dataAnalysis__description:
+    description: Longer statement or account giving the characteristics of someone
+      or something.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/description
+  dataAnalysis__endTime:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/endTime
+  dataAnalysis__environment:
+    description: ''
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/environment
+  dataAnalysis__input:
+    description: Something or someone that is put into or participates in a process
+      or machine.
+    multivalued: true
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/input
+  dataAnalysis__launchConfiguration:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/launchConfiguration
+  dataAnalysis__lookupLabel:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/lookupLabel
+  dataAnalysis__output:
+    description: Something or someone that comes out of, is delivered or produced
+      by a process or machine.
+    multivalued: true
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/output
+  dataAnalysis__performedBy:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/performedBy
+  dataAnalysis__recipe:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/recipe
+  dataAnalysis__resourceUsage:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/resourceUsage
+  dataAnalysis__startTime:
+    description: ''
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/startTime
+  dataAnalysis__startedBy:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/startedBy
+  dataAnalysis__status:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/status
+  dataAnalysis__studyTarget:
+    description: Structure or function that was targeted within a study.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/studyTarget
+  dataAnalysis__tag:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/tag
+  dataAnalysis__technique:
+    description: Method of accomplishing a desired aim.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/technique
+  dataAnalysis__wasInformedBy:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/wasInformedBy
+  dataCopy__customPropertySet:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/customPropertySet
+  dataCopy__description:
+    description: Longer statement or account giving the characteristics of someone
+      or something.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/description
+  dataCopy__endTime:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/endTime
+  dataCopy__environment:
+    description: ''
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/environment
+  dataCopy__input:
+    description: Something or someone that is put into or participates in a process
+      or machine.
+    multivalued: true
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/input
+  dataCopy__launchConfiguration:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/launchConfiguration
+  dataCopy__lookupLabel:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/lookupLabel
+  dataCopy__output:
+    description: Something or someone that comes out of, is delivered or produced
+      by a process or machine.
+    multivalued: true
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/output
+  dataCopy__performedBy:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/performedBy
+  dataCopy__recipe:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/recipe
+  dataCopy__resourceUsage:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/resourceUsage
+  dataCopy__startTime:
+    description: ''
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/startTime
+  dataCopy__startedBy:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/startedBy
+  dataCopy__status:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/status
+  dataCopy__studyTarget:
+    description: Structure or function that was targeted within a study.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/studyTarget
+  dataCopy__tag:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/tag
+  dataCopy__technique:
+    description: Method of accomplishing a desired aim.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/technique
+  dataCopy__wasInformedBy:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/wasInformedBy
+  deployedInterface__accessibility:
+    description: Level to which something is accessible to someone or something.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/accessibility
+  deployedInterface__entryPoint:
+    description: ''
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/entryPoint
+  deployedInterface__interface:
+    description: ''
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/interface
+  environment__configuration:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/configuration
+  environment__description:
+    description: Longer statement or account giving the characteristics of someone
+      or something.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/description
+  environment__hardware:
+    description: ''
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/hardware
+  environment__name:
+    description: Word or phrase that constitutes the distinctive designation of a
+      being or thing.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/name
+  environment__software:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/software
+  genericComputation__customPropertySet:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/customPropertySet
+  genericComputation__description:
+    description: Longer statement or account giving the characteristics of someone
+      or something.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/description
+  genericComputation__endTime:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/endTime
+  genericComputation__environment:
+    description: ''
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/environment
+  genericComputation__input:
+    description: Something or someone that is put into or participates in a process
+      or machine.
+    multivalued: true
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/input
+  genericComputation__launchConfiguration:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/launchConfiguration
+  genericComputation__lookupLabel:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/lookupLabel
+  genericComputation__output:
+    description: Something or someone that comes out of, is delivered or produced
+      by a process or machine.
+    multivalued: true
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/output
+  genericComputation__performedBy:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/performedBy
+  genericComputation__recipe:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/recipe
+  genericComputation__resourceUsage:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/resourceUsage
+  genericComputation__startTime:
+    description: ''
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/startTime
+  genericComputation__startedBy:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/startedBy
+  genericComputation__status:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/status
+  genericComputation__studyTarget:
+    description: Structure or function that was targeted within a study.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/studyTarget
+  genericComputation__tag:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/tag
+  genericComputation__technique:
+    description: Method of accomplishing a desired aim.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/technique
+  genericComputation__wasInformedBy:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/wasInformedBy
+  hardwareSystem__description:
+    description: Longer statement or account giving the characteristics of someone
+      or something.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/description
+  hardwareSystem__name:
+    description: Word or phrase that constitutes the distinctive designation of a
+      being or thing.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/name
+  hardwareSystem__versionIdentifier:
+    description: Term or code used to identify the version of something.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/versionIdentifier
+  launchConfiguration__argument:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/argument
+  launchConfiguration__description:
+    description: Longer statement or account giving the characteristics of someone
+      or something.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/description
+  launchConfiguration__environmentVariable:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/environmentVariable
+  launchConfiguration__executable:
+    description: ''
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/executable
+  launchConfiguration__name:
+    description: Word or phrase that constitutes the distinctive designation of a
+      being or thing.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/name
+  modelValidation__customPropertySet:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/customPropertySet
+  modelValidation__description:
+    description: Longer statement or account giving the characteristics of someone
+      or something.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/description
+  modelValidation__endTime:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/endTime
+  modelValidation__environment:
+    description: ''
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/environment
+  modelValidation__input:
+    description: Something or someone that is put into or participates in a process
+      or machine.
+    multivalued: true
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/input
+  modelValidation__launchConfiguration:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/launchConfiguration
+  modelValidation__lookupLabel:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/lookupLabel
+  modelValidation__output:
+    description: Something or someone that comes out of, is delivered or produced
+      by a process or machine.
+    multivalued: true
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/output
+  modelValidation__performedBy:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/performedBy
+  modelValidation__recipe:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/recipe
+  modelValidation__resourceUsage:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/resourceUsage
+  modelValidation__score:
+    description: ''
+    multivalued: false
+    range: float
+    required: false
+    slot_uri: https://openminds.om-i.org/props/score
+  modelValidation__startTime:
+    description: ''
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/startTime
+  modelValidation__startedBy:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/startedBy
+  modelValidation__status:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/status
+  modelValidation__studyTarget:
+    description: Structure or function that was targeted within a study.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/studyTarget
+  modelValidation__tag:
+    description: ''
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/tag
+  modelValidation__technique:
+    description: Method of accomplishing a desired aim.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/technique
+  modelValidation__wasInformedBy:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/wasInformedBy
+  productSource__digitalIdentifier:
+    description: Digital handle to identify objects or legal persons.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/digitalIdentifier
+  productSource__identifier:
+    description: Term or code used to identify something or someone.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/identifier
+  productSource__productName:
+    description: ''
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/productName
+  productSource__provider:
+    description: ''
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://openminds.om-i.org/props/provider
+  productSource__purity:
+    description: ''
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://openminds.om-i.org/props/purity
+title: openMINDS Schema
+version: 4.0.0

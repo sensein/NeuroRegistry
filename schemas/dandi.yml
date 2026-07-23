@@ -1,0 +1,1067 @@
+classes:
+  AccessRequirements:
+    class_uri: https://schema.dandiarchive.org/#AccessRequirements
+    description: Information about access options for the dataset
+    slots:
+    - AccessRequirements__id
+    - AccessRequirements__schemaKey
+    - AccessRequirements__status
+    - AccessRequirements__contactPoint
+    - AccessRequirements__description
+    - AccessRequirements__embargoedUntil
+  Affiliation:
+    class_uri: https://schema.dandiarchive.org/#Affiliation
+    description: Affiliation
+    slots:
+    - Affiliation__id
+    - Affiliation__schemaKey
+    - Affiliation__identifier
+    - Affiliation__name
+  Agent:
+    class_uri: https://schema.dandiarchive.org/#Agent
+    description: Agent
+    slots:
+    - Agent__id
+    - Agent__schemaKey
+    - Agent__identifier
+    - Agent__name
+    - Agent__url
+  Anatomy:
+    class_uri: https://schema.dandiarchive.org/#Anatomy
+    description: UBERON or other identifier for anatomical part studied
+    slots:
+    - Anatomy__id
+    - Anatomy__schemaKey
+    - Anatomy__identifier
+    - Anatomy__name
+  ApproachType:
+    class_uri: https://schema.dandiarchive.org/#ApproachType
+    description: Identifier for approach used
+    slots:
+    - ApproachType__id
+    - ApproachType__schemaKey
+    - ApproachType__identifier
+    - ApproachType__name
+  AssetsSummary:
+    class_uri: https://schema.dandiarchive.org/#AssetsSummary
+    description: Summary over assets contained in a dandiset (published or not)
+    slots:
+    - AssetsSummary__id
+    - AssetsSummary__schemaKey
+    - AssetsSummary__numberOfBytes
+    - AssetsSummary__numberOfFiles
+    - AssetsSummary__numberOfSubjects
+    - AssetsSummary__numberOfSamples
+    - AssetsSummary__numberOfCells
+    - AssetsSummary__dataStandard
+    - AssetsSummary__approach
+    - AssetsSummary__measurementTechnique
+    - AssetsSummary__variableMeasured
+    - AssetsSummary__species
+  ContactPoint:
+    class_uri: https://schema.dandiarchive.org/#ContactPoint
+    description: Contact Point
+    slots:
+    - ContactPoint__id
+    - ContactPoint__schemaKey
+    - ContactPoint__email
+    - ContactPoint__url
+  Dandiset:
+    class_uri: https://schema.dandiarchive.org/#Dandiset
+    description: A body of structured information describing a DANDI dataset.
+    slots:
+    - Dandiset__id
+    - Dandiset__schemaKey
+    - Dandiset__schemaVersion
+    - Dandiset__name
+    - Dandiset__description
+    - Dandiset__contributor
+    - Dandiset__about
+    - Dandiset__studyTarget
+    - Dandiset__license
+    - Dandiset__protocol
+    - Dandiset__ethicsApproval
+    - Dandiset__keywords
+    - Dandiset__acknowledgement
+    - Dandiset__access
+    - Dandiset__url
+    - Dandiset__repository
+    - Dandiset__relatedResource
+    - Dandiset__wasGeneratedBy
+    - Dandiset__identifier
+    - Dandiset__dateCreated
+    - Dandiset__dateModified
+    - Dandiset__citation
+    - Dandiset__assetsSummary
+    - Dandiset__manifestLocation
+    - Dandiset__version
+  Disorder:
+    class_uri: https://schema.dandiarchive.org/#Disorder
+    description: Biolink, SNOMED, or other identifier for disorder studied
+    slots:
+    - Disorder__id
+    - Disorder__schemaKey
+    - Disorder__identifier
+    - Disorder__name
+    - Disorder__dxdate
+  Equipment:
+    class_uri: https://schema.dandiarchive.org/#Equipment
+    description: Equipment
+    slots:
+    - Equipment__id
+    - Equipment__schemaKey
+    - Equipment__identifier
+    - Equipment__name
+    - Equipment__description
+  EthicsApproval:
+    class_uri: https://schema.dandiarchive.org/#EthicsApproval
+    description: Information about ethics committee approval for project
+    slots:
+    - EthicsApproval__id
+    - EthicsApproval__schemaKey
+    - EthicsApproval__identifier
+    - EthicsApproval__contactPoint
+  GenericType:
+    class_uri: https://schema.dandiarchive.org/#GenericType
+    description: An object to capture any type for about
+    slots:
+    - GenericType__id
+    - GenericType__schemaKey
+    - GenericType__identifier
+    - GenericType__name
+  MeasurementTechniqueType:
+    class_uri: https://schema.dandiarchive.org/#MeasurementTechniqueType
+    description: Identifier for measurement technique used
+    slots:
+    - MeasurementTechniqueType__id
+    - MeasurementTechniqueType__schemaKey
+    - MeasurementTechniqueType__identifier
+    - MeasurementTechniqueType__name
+  Organization:
+    class_uri: https://schema.dandiarchive.org/#Organization
+    description: Organization
+    slots:
+    - Organization__id
+    - Organization__schemaKey
+    - Organization__identifier
+    - Organization__name
+    - Organization__email
+    - Organization__url
+    - Organization__roleName
+    - Organization__includeInCitation
+    - Organization__awardNumber
+    - Organization__contactPoint
+  Person:
+    class_uri: https://schema.dandiarchive.org/#Person
+    description: Person
+    slots:
+    - Person__id
+    - Person__schemaKey
+    - Person__identifier
+    - Person__name
+    - Person__email
+    - Person__url
+    - Person__roleName
+    - Person__includeInCitation
+    - Person__awardNumber
+    - Person__affiliation
+  Project:
+    class_uri: https://schema.dandiarchive.org/#Project
+    description: Information about the Project activity
+    slots:
+    - Project__id
+    - Project__schemaKey
+    - Project__identifier
+    - Project__name
+    - Project__description
+    - Project__startDate
+    - Project__endDate
+    - Project__wasAssociatedWith
+    - Project__used
+  Resource:
+    class_uri: https://schema.dandiarchive.org/#Resource
+    description: Resource
+    slots:
+    - Resource__id
+    - Resource__schemaKey
+    - Resource__identifier
+    - Resource__name
+    - Resource__url
+    - Resource__repository
+    - Resource__relation
+  Software:
+    class_uri: https://schema.dandiarchive.org/#Software
+    description: Software
+    slots:
+    - Software__id
+    - Software__schemaKey
+    - Software__identifier
+    - Software__name
+    - Software__version
+    - Software__url
+  SpeciesType:
+    class_uri: https://schema.dandiarchive.org/#SpeciesType
+    description: Identifier for species of the sample
+    slots:
+    - SpeciesType__id
+    - SpeciesType__schemaKey
+    - SpeciesType__identifier
+    - SpeciesType__name
+  StandardsType:
+    class_uri: https://schema.dandiarchive.org/#StandardsType
+    description: Identifier for data standard used
+    slots:
+    - StandardsType__id
+    - StandardsType__schemaKey
+    - StandardsType__identifier
+    - StandardsType__name
+default_prefix: dandi
+default_range: string
+description: DANDI Archive metadata schema for neurophysiology datasets.
+id: https://schema.dandiarchive.org/
+imports:
+- linkml:types
+license: CC-BY-4.0
+name: dandi
+prefixes:
+  dandi: https://schema.dandiarchive.org/
+  linkml: https://w3id.org/linkml/
+  schema: https://schema.org/
+  xsd: http://www.w3.org/2001/XMLSchema#
+slots:
+  AccessRequirements__contactPoint:
+    description: Who or where to look for information about access.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#contactPoint
+  AccessRequirements__description:
+    description: Information about access requirements when embargoed or restricted
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:description
+  AccessRequirements__embargoedUntil:
+    description: Date on which embargo ends.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#embargoedUntil
+  AccessRequirements__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  AccessRequirements__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  AccessRequirements__status:
+    description: The access status of the item.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#status
+  Affiliation__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  Affiliation__identifier:
+    description: Use an ror.org identifier for institutions.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:identifier
+  Affiliation__name:
+    description: Name of organization
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: schema:name
+  Affiliation__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  Agent__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  Agent__identifier:
+    description: Identifier for an agent.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:identifier
+  Agent__name:
+    description: Name
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: schema:name
+  Agent__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  Agent__url:
+    description: URL
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:url
+  Anatomy__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  Anatomy__identifier:
+    description: The identifier can be any url or a compact URI, preferably supported
+      by identifiers.org.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:identifier
+  Anatomy__name:
+    description: The name of the item.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:name
+  Anatomy__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  ApproachType__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  ApproachType__identifier:
+    description: The identifier can be any url or a compact URI, preferably supported
+      by identifiers.org.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:identifier
+  ApproachType__name:
+    description: The name of the item.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:name
+  ApproachType__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  AssetsSummary__approach:
+    description: Approach
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#approach
+  AssetsSummary__dataStandard:
+    description: Data Standard
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#dataStandard
+  AssetsSummary__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  AssetsSummary__measurementTechnique:
+    description: Measurement Technique
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#measurementTechnique
+  AssetsSummary__numberOfBytes:
+    description: Number of Bytes
+    multivalued: false
+    range: integer
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#numberOfBytes
+  AssetsSummary__numberOfCells:
+    description: Number of Cells
+    multivalued: false
+    range: integer
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#numberOfCells
+  AssetsSummary__numberOfFiles:
+    description: Number of Files
+    multivalued: false
+    range: integer
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#numberOfFiles
+  AssetsSummary__numberOfSamples:
+    description: Number of Samples
+    multivalued: false
+    range: integer
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#numberOfSamples
+  AssetsSummary__numberOfSubjects:
+    description: Number of Subjects
+    multivalued: false
+    range: integer
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#numberOfSubjects
+  AssetsSummary__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  AssetsSummary__species:
+    description: Species
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#species
+  AssetsSummary__variableMeasured:
+    description: Variable Measured
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#variableMeasured
+  ContactPoint__email:
+    description: Email address of contact.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#email
+  ContactPoint__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  ContactPoint__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  ContactPoint__url:
+    description: A Web page to find information on how to contact.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:url
+  Dandiset__about:
+    description: The subject matter of the content, such as disorders, brain anatomy.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: schema:about
+  Dandiset__access:
+    description: Access information
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#access
+  Dandiset__acknowledgement:
+    description: Acknowledgement
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#acknowledgement
+  Dandiset__assetsSummary:
+    description: Assets Summary
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#assetsSummary
+  Dandiset__citation:
+    description: Citation
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: schema:citation
+  Dandiset__contributor:
+    description: People or Organizations that have contributed to this Dandiset.
+    multivalued: true
+    range: string
+    required: true
+    slot_uri: schema:contributor
+  Dandiset__dateCreated:
+    description: Dandiset creation date and time.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#dateCreated
+  Dandiset__dateModified:
+    description: Last modification date and time.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:dateModified
+  Dandiset__description:
+    description: A description of the Dandiset
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: schema:description
+  Dandiset__ethicsApproval:
+    description: Ethics approvals
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#ethicsApproval
+  Dandiset__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#id
+  Dandiset__identifier:
+    description: A Dandiset identifier that can be resolved by identifiers.org.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: schema:identifier
+  Dandiset__keywords:
+    description: Keywords used to describe this content.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: schema:keywords
+  Dandiset__license:
+    description: Licenses associated with the item. DANDI only supports a subset of
+      Creative Commons Licenses (creativecommons.org) applicable to datasets.
+    multivalued: true
+    range: string
+    required: true
+    slot_uri: schema:license
+  Dandiset__manifestLocation:
+    description: Manifest Location
+    multivalued: true
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#manifestLocation
+  Dandiset__name:
+    description: A title associated with the Dandiset.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: schema:name
+  Dandiset__protocol:
+    description: A list of persistent URLs describing the protocol (e.g. protocols.io,
+      or other DOIs).
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#protocol
+  Dandiset__relatedResource:
+    description: Related Resource
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#relatedResource
+  Dandiset__repository:
+    description: location of the item
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#repository
+  Dandiset__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  Dandiset__schemaVersion:
+    description: Schema Version
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#schemaVersion
+  Dandiset__studyTarget:
+    description: Objectives or specific questions of the study.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#studyTarget
+  Dandiset__url:
+    description: permalink to the item
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:url
+  Dandiset__version:
+    description: Version
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: schema:version
+  Dandiset__wasGeneratedBy:
+    description: Project(s) that generated this Dandiset.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#wasGeneratedBy
+  Disorder__dxdate:
+    description: Dates of diagnosis
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#dxdate
+  Disorder__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  Disorder__identifier:
+    description: The identifier can be any url or a compact URI, preferably supported
+      by identifiers.org.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:identifier
+  Disorder__name:
+    description: The name of the item.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:name
+  Disorder__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  Equipment__description:
+    description: The description of the equipment.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:description
+  Equipment__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  Equipment__identifier:
+    description: Identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:identifier
+  Equipment__name:
+    description: A name for the equipment.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: schema:name
+  Equipment__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  EthicsApproval__contactPoint:
+    description: Information about the ethics approval committee.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#contactPoint
+  EthicsApproval__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  EthicsApproval__identifier:
+    description: Approved Protocol identifier, often a number or alphanumeric string.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: schema:identifier
+  EthicsApproval__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  GenericType__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  GenericType__identifier:
+    description: The identifier can be any url or a compact URI, preferably supported
+      by identifiers.org.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:identifier
+  GenericType__name:
+    description: The name of the item.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:name
+  GenericType__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  MeasurementTechniqueType__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  MeasurementTechniqueType__identifier:
+    description: The identifier can be any url or a compact URI, preferably supported
+      by identifiers.org.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:identifier
+  MeasurementTechniqueType__name:
+    description: The name of the item.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:name
+  MeasurementTechniqueType__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  Organization__awardNumber:
+    description: Identifier associated with a sponsored or gift award.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#awardNumber
+  Organization__contactPoint:
+    description: Contact for the organization
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#contactPoint
+  Organization__email:
+    description: Email
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#email
+  Organization__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  Organization__identifier:
+    description: Use an ror.org identifier for institutions.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:identifier
+  Organization__includeInCitation:
+    description: A flag to indicate whether a contributor should be included when
+      generating a citation for the item
+    multivalued: false
+    range: boolean
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#includeInCitation
+  Organization__name:
+    description: Name
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:name
+  Organization__roleName:
+    description: Role(s) of the contributor. Multiple roles can be selected.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#roleName
+  Organization__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  Organization__url:
+    description: URL
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:url
+  Person__affiliation:
+    description: An organization that this person is affiliated with.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#affiliation
+  Person__awardNumber:
+    description: Identifier associated with a sponsored or gift award.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#awardNumber
+  Person__email:
+    description: Email
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#email
+  Person__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  Person__identifier:
+    description: An ORCID (orcid.org) identifier for an individual.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:identifier
+  Person__includeInCitation:
+    description: A flag to indicate whether a contributor should be included when
+      generating a citation for the item.
+    multivalued: false
+    range: boolean
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#includeInCitation
+  Person__name:
+    description: 'Use the format: familyname, given names ...'
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: schema:name
+  Person__roleName:
+    description: Role(s) of the contributor. Multiple roles can be selected.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#roleName
+  Person__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  Person__url:
+    description: URL
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:url
+  Project__description:
+    description: A brief description of the project.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:description
+  Project__endDate:
+    description: End Date
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#endDate
+  Project__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  Project__identifier:
+    description: Identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:identifier
+  Project__name:
+    description: The name of the project that generated this Dandiset or asset.
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: schema:name
+  Project__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  Project__startDate:
+    description: Start Date
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#startDate
+  Project__used:
+    description: A listing of equipment used for the activity.
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#used
+  Project__wasAssociatedWith:
+    description: Was Associated with
+    multivalued: true
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#wasAssociatedWith
+  Resource__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  Resource__identifier:
+    description: Identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:identifier
+  Resource__name:
+    description: A title of the resource
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:name
+  Resource__relation:
+    description: 'Indicates how the resource is related to the dataset. This relation
+      should satisfy: dandiset <relation> resource.'
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#relation
+  Resource__repository:
+    description: Name of the repository in which the resource is housed.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#repository
+  Resource__resourceType:
+    description: The type of resource.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#resourceType
+  Resource__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  Resource__url:
+    description: URL of the resource
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:url
+  Software__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  Software__identifier:
+    description: RRID of the software from scicrunch.org.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:identifier
+  Software__name:
+    description: Name
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: schema:name
+  Software__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  Software__url:
+    description: Web page for the software.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:url
+  Software__version:
+    description: Version
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: schema:version
+  SpeciesType__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  SpeciesType__identifier:
+    description: The identifier can be any url or a compact URI, preferably supported
+      by identifiers.org.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:identifier
+  SpeciesType__name:
+    description: The name of the item.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:name
+  SpeciesType__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+  StandardsType__id:
+    description: Uniform resource identifier
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: https://schema.dandiarchive.org/#id
+  StandardsType__identifier:
+    description: The identifier can be any url or a compact URI, preferably supported
+      by identifiers.org.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:identifier
+  StandardsType__name:
+    description: The name of the item.
+    multivalued: false
+    range: string
+    required: false
+    slot_uri: schema:name
+  StandardsType__schemaKey:
+    description: Schema Key
+    multivalued: false
+    range: string
+    required: true
+    slot_uri: https://schema.dandiarchive.org/#schemaKey
+title: DANDI Schema
+version: 0.6.8

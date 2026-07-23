@@ -23,9 +23,9 @@ inserting anything.
 """
 
 from __future__ import annotations
-import datetime, uuid
 import click, httpx, rdflib
-import ladybug as lb
+
+from db import get_connection, make_base, make_uid, now_iso, REG
 
 # ---------------------------------------------------------------------------
 # Config
@@ -35,53 +35,50 @@ SCHEMA_ORG_JSONLD = (
     "https://schema.org/version/latest/schemaorg-current-https.jsonld"
 )
 
-REG     = "https://registry.sensein.io/"
 SCHEMA  = rdflib.Namespace("https://schema.org/")
 RDFS    = rdflib.RDFS
 RDF     = rdflib.RDF
 
-# Top-level types to seed.  Everything reachable via subClassOf from these
-# is also included automatically.
-SEED_ROOTS = [
-    "Thing",
-    "CreativeWork",
-    "Event",
-    "Organization",
-    "Person",
-    "Place",
-    "Product",
-    "Action",
-    "MedicalEntity",
-    "AudioObject",
-    "ImageObject",
-    "VideoObject",
+# Curated type list — explicit rather than BFS so we don't pull in
+# ComedyEvent, AMRadioChannel, and 900 other irrelevant schema.org types.
+#
+# Core identity
+SEED_ROOTS_CORE = [
+    "Thing", "Person", "Organization",
 ]
 
-# ---------------------------------------------------------------------------
-# Helpers  (mirrors make_base / make_uri from schema_registry.py)
-# ---------------------------------------------------------------------------
+# Bio / neuro — MedicalEntity and BioChemEntity subtrees are fully relevant
+SEED_ROOTS_BIO = [
+    "MedicalEntity",
+    "AnatomicalStructure", "BrainStructure", "Nerve", "AnatomicalSystem",
+    "MedicalCondition", "InfectiousDisease", "MedicalSignOrSymptom",
+    "MedicalStudy", "MedicalObservationalStudy", "MedicalTrial",
+    "MedicalProcedure", "DiagnosticProcedure", "TherapeuticProcedure",
+    "MedicalTest", "ImagingTest", "BloodTest",
+    "MedicalDevice", "Drug", "Substance",
+    "BioChemEntity", "Gene", "Protein", "MolecularEntity", "ChemicalSubstance",
+]
 
-def now_iso() -> str:
-    return datetime.datetime.now(datetime.UTC).isoformat()
+# Research output
+SEED_ROOTS_RESEARCH = [
+    "CreativeWork", "Article", "ScholarlyArticle", "Dataset",
+    "SoftwareApplication", "SoftwareSourceCode",
+]
 
-def make_uid() -> str:
-    return str(uuid.uuid4())
+# Supporting
+SEED_ROOTS_SUPPORTING = [
+    "Event", "ConferenceEvent", "EducationEvent",
+    "Place",
+]
 
-def make_iri(object_id: str) -> str:
-    return f"{REG}obj/{object_id}"
+SEED_ROOTS = (
+    SEED_ROOTS_CORE
+    + SEED_ROOTS_BIO
+    + SEED_ROOTS_RESEARCH
+    + SEED_ROOTS_SUPPORTING
+)
 
-def make_uri(object_id: str, version: str = "1.0.0") -> str:
-    return f"{REG}obj/{object_id}/v/{version}"
-
-def make_base(object_id: str, iri: str | None = None,
-              version: str = "1.0.0") -> dict:
-    return {
-        "uid":        make_uid(),
-        "iri":        iri or make_iri(object_id),
-        "uri":        make_uri(object_id, version),
-        "version":    version,
-        "created_at": now_iso(),
-    }
+# Helpers imported from db.py
 
 # ---------------------------------------------------------------------------
 # Fetch + parse schema.org
@@ -101,23 +98,9 @@ def collect_classes(g: rdflib.Graph) -> dict[str, dict]:
     """
     Return a dict keyed by short name (e.g. "Person") with:
       iri, label, comment, subclass_of (list of short names), props (list)
-    Only includes classes reachable from SEED_ROOTS.
+    Only includes types in SEED_ROOTS — no BFS expansion.
     """
-    # BFS from roots following subClassOf *upward* (child → parent already in
-    # set) and *downward* via subjects of subClassOf pointing to our roots.
-    wanted: set[str] = set()
-    queue = list(SEED_ROOTS)
-    while queue:
-        name = queue.pop()
-        if name in wanted:
-            continue
-        wanted.add(name)
-        node = SCHEMA[name]
-        # children: anything that declares subClassOf this node
-        for child in g.subjects(RDFS.subClassOf, node):
-            short = str(child).replace("https://schema.org/", "")
-            if short not in wanted:
-                queue.append(short)
+    wanted: set[str] = set(SEED_ROOTS)
 
     classes: dict[str, dict] = {}
     for name in wanted:
@@ -163,9 +146,10 @@ def collect_classes(g: rdflib.Graph) -> dict[str, dict]:
 
 def seed(db_path: str = "./registry.lbug",
          dry_run: bool = False,
-         wipe: bool = False) -> None:
+         wipe: bool = False,
+         registry_version: str = "1.0.0") -> None:
 
-    conn = lb.Connection(lb.Database(db_path))
+    conn = get_connection(db_path)
 
     if wipe and not dry_run:
         print("Wiping existing SchemaClass and SchemaProperty nodes …")

@@ -1,195 +1,195 @@
 """
-export_json.py — Export registry snapshot to data/registry.json
+export_json.py — Export registry snapshot + provenance to data/
 ---------------------------------------------------------------
-Reads the LadybugDB graph and writes a single JSON file that the
-GitHub Pages frontend consumes. Runs as the last step in the CI
-workflow after every schema ingestion.
+Runs after every ingest/align cycle. Produces:
 
-Output shape:
-{
-  "generated_at": "2025-...",
-  "sources": [
-    { "label": "schema.org", "version": "1.0.0", "class_count": 38 }
-  ],
-  "classes": [
-    {
-      "uid":          "...",
-      "iri":          "https://schema.org/Person",
-      "uri":          "https://registry.sensein.io/obj/Person/v/1.0.0",
-      "name":         "Person",
-      "definition":   "A person...",
-      "version":      "1.0.0",
-      "abstract":     false,
-      "source":       "schema.org",
-      "properties":   [
-        {
-          "uid":         "...",
-          "iri":         "https://schema.org/name",
-          "name":        "name",
-          "definition":  "...",
-          "datatype":    "xsd:string",
-          "range_uri":   "",
-          "multivalued": false,
-          "required":    false,
-          "source":      "schema.org"
-        }
-      ],
-      "subclass_of":  ["https://schema.org/Thing"],
-      "alignments":   [
-        {
-          "target_uid":  "...",
-          "target_name": "Investigator",
-          "target_iri":  "https://schema.org/Person",
-          "target_source": "bbqs",
-          "distance":    0.0,
-          "method":      "iri"
-        }
-      ]
-    }
-  ]
-}
+  data/registry.json          — latest snapshot (frontend reads this)
+  data/versions/{ver}.json    — archived snapshot for this registry version
+  data/provenance.json        — append-only log of every registry version
 
 Usage:
     python export_json.py
-    python export_json.py --db ./registry.lbug --out data/registry.json
+    python export_json.py --db ./registry.lbug --bump minor
+    python export_json.py --issue 3 --agent sulimansharif --bump minor
 """
 
 from __future__ import annotations
-import datetime, json, os
+import json, shutil
 from pathlib import Path
 
 import click
-import ladybug as lb
 
+from db import (
+    get_connection, now_iso,
+    current_registry_version, next_registry_version, append_provenance,
+    PROVENANCE_PATH,
+)
+
+DATA_DIR = Path("data")
 DB_PATH  = "./registry.lbug"
-OUT_PATH = "data/registry.json"
 
 
-def export(conn: lb.Connection) -> dict:
+# ---------------------------------------------------------------------------
+# Export helpers
+# ---------------------------------------------------------------------------
+
+def export_snapshot(conn, registry_version: str) -> dict:
     # ---- sources -----------------------------------------------------------
-    src_result = conn.execute(
+    src_rows = conn.execute(
         "MATCH (s:SchemaSource) RETURN s.uid, s.label, s.version"
-    )
-    source_rows = src_result.get_all()
+    ).get_all()
 
-    source_class_counts: dict[str, int] = {}
-    for row in source_rows:
-        _, label, _ = row
-        r = conn.execute(
+    sources = []
+    for _, label, ver in src_rows:
+        count = conn.execute(
             "MATCH (n:SchemaClass {source_label: $src}) RETURN count(n)",
             {"src": label}
-        )
-        source_class_counts[label] = r.get_next()[0]
-
-    sources = [
-        {
-            "label":       row[1],
-            "version":     row[2] or "1.0.0",
-            "class_count": source_class_counts.get(row[1], 0),
-        }
-        for row in source_rows
-    ]
+        ).get_next()[0]
+        sources.append({"label": label, "version": ver or "1.0.0",
+                        "class_count": count})
 
     # ---- classes -----------------------------------------------------------
-    cls_result = conn.execute("""
+    cls_rows = conn.execute("""
         MATCH (n:SchemaClass)
         RETURN n.uid, n.iri, n.uri, n.name, n.definition,
-               n.version, n.abstract, n.source_label
+               n.version, n.abstract, n.source_label, n.registry_version
         ORDER BY n.source_label, n.name
-    """)
+    """).get_all()
 
     classes = []
-    for row in cls_result.get_all():
-        uid, iri, uri, name, definition, version, abstract, source = row
+    for row in cls_rows:
+        uid, iri, uri, name, defn, ver, abstract, source, reg_ver = row
 
-        # properties
-        prop_result = conn.execute("""
+        props = conn.execute("""
             MATCH (c:SchemaClass {uid: $uid})-[:HAS_PROPERTY]->(p:SchemaProperty)
             RETURN p.uid, p.iri, p.name, p.definition,
-                   p.datatype, p.range_uri, p.multivalued,
-                   p.required, p.source_label
+                   p.datatype, p.range_uri, p.multivalued, p.required, p.source_label
             ORDER BY p.name
-        """, {"uid": uid})
+        """, {"uid": uid}).get_all()
 
-        properties = [
-            {
-                "uid":         r[0],
-                "iri":         r[1] or "",
-                "name":        r[2] or "",
-                "definition":  r[3] or "",
-                "datatype":    r[4] or "",
-                "range_uri":   r[5] or "",
-                "multivalued": bool(r[6]),
-                "required":    bool(r[7]),
-                "source":      r[8] or "",
-            }
-            for r in prop_result.get_all()
+        subclass_of = [
+            r[0] for r in conn.execute("""
+                MATCH (c:SchemaClass {uid: $uid})-[:SUBCLASS_OF]->(p:SchemaClass)
+                RETURN p.iri
+            """, {"uid": uid}).get_all() if r[0]
         ]
 
-        # subclass_of
-        sub_result = conn.execute("""
-            MATCH (c:SchemaClass {uid: $uid})-[:SUBCLASS_OF]->(p:SchemaClass)
-            RETURN p.iri
-        """, {"uid": uid})
-        subclass_of = [r[0] for r in sub_result.get_all() if r[0]]
-
-        # alignments
-        align_result = conn.execute("""
+        align_rows = conn.execute("""
             MATCH (c:SchemaClass {uid: $uid})-[a:ALIGNED_TO]->(t:SchemaClass)
-            RETURN t.uid, t.name, t.iri, t.source_label, a.distance, a.method
+            RETURN t.uid, t.name, t.iri, t.source_label,
+                   a.distance, a.method,
+                   a.score_iri, a.score_name, a.score_desc, a.score_slot
             ORDER BY a.distance
-        """, {"uid": uid})
-
-        alignments = [
-            {
-                "target_uid":    r[0],
-                "target_name":   r[1] or "",
-                "target_iri":    r[2] or "",
-                "target_source": r[3] or "",
-                "distance":      float(r[4]) if r[4] is not None else 1.0,
-                "method":        r[5] or "",
-            }
-            for r in align_result.get_all()
-        ]
+        """, {"uid": uid}).get_all()
 
         classes.append({
-            "uid":         uid,
-            "iri":         iri or "",
-            "uri":         uri or "",
-            "name":        name or "",
-            "definition":  definition or "",
-            "version":     version or "1.0.0",
-            "abstract":    bool(abstract),
-            "source":      source or "",
-            "properties":  properties,
+            "uid":              uid,
+            "iri":              iri or "",
+            "uri":              uri or "",
+            "name":             name or "",
+            "definition":       defn or "",
+            "version":          ver or "1.0.0",
+            "registry_version": reg_ver or "",
+            "abstract":         bool(abstract),
+            "source":           source or "",
+            "properties": [
+                {
+                    "uid":         r[0], "iri":  r[1] or "",
+                    "name":        r[2] or "", "definition": r[3] or "",
+                    "datatype":    r[4] or "", "range_uri":  r[5] or "",
+                    "multivalued": bool(r[6]), "required":   bool(r[7]),
+                    "source":      r[8] or "",
+                }
+                for r in props
+            ],
             "subclass_of": subclass_of,
-            "alignments":  alignments,
+            "alignments": [
+                {
+                    "target_uid":    r[0], "target_name":   r[1] or "",
+                    "target_iri":    r[2] or "",
+                    "target_source": r[3] or "",
+                    "distance":      float(r[4]) if r[4] is not None else 1.0,
+                    "method":        r[5] or "",
+                    "scores": {
+                        "iri":  float(r[6]) if r[6] is not None else 0.0,
+                        "name": float(r[7]) if r[7] is not None else 0.0,
+                        "desc": float(r[8]) if r[8] is not None else 0.0,
+                        "slot": float(r[9]) if r[9] is not None else 0.0,
+                    }
+                }
+                for r in align_rows
+            ],
         })
 
     return {
-        "generated_at": datetime.datetime.now(datetime.UTC).isoformat(),
-        "sources":      sources,
-        "classes":      classes,
+        "registry_version": registry_version,
+        "generated_at":     now_iso(),
+        "sources":          sources,
+        "classes":          classes,
     }
 
 
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
 @click.command()
-@click.option("--db",  default=DB_PATH,  show_default=True,
-              help="Path to LadybugDB file.")
-@click.option("--out", default=OUT_PATH, show_default=True,
-              help="Output JSON path.")
-def cli(db: str, out: str) -> None:
-    """Export registry snapshot to JSON for the GitHub Pages frontend."""
-    conn = lb.Connection(lb.Database(db))
-    data = export(conn)
+@click.option("--db",     default=DB_PATH, show_default=True)
+@click.option("--bump",   default="minor",
+              type=click.Choice(["major", "minor", "patch"]),
+              help="Version bump type. major=breaking, minor=new schema, patch=update.")
+@click.option("--issue",  default="", help="GitHub issue number that triggered this.")
+@click.option("--agent",  default="github-actions", help="Who triggered this.")
+@click.option("--schema", default="", help="Schema name that was ingested.")
+def cli(db: str, bump: str, issue: str, agent: str, schema: str) -> None:
+    """Export registry snapshot, archive version, append provenance."""
+    conn = get_connection(db)
 
-    out_path = Path(out)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(data, indent=2))
+    # Compute new registry version
+    current = current_registry_version()
+    new_ver  = next_registry_version(current, bump) if current != "0.0.0" else "1.0.0"
+    click.echo(f"Registry version: {current} → {new_ver}")
 
-    nc = len(data["classes"])
-    ns = len(data["sources"])
-    click.echo(f"Exported {nc} classes from {ns} sources → {out_path}")
+    # Build snapshot
+    snapshot = export_snapshot(conn, new_ver)
+    nc = len(snapshot["classes"])
+    ns = len(snapshot["sources"])
+
+    # Write data/registry.json (latest)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    latest = DATA_DIR / "registry.json"
+    latest.write_text(json.dumps(snapshot, indent=2))
+    click.echo(f"Wrote {latest}  ({nc} classes, {ns} sources)")
+
+    # Archive to data/versions/{ver}.json
+    versions_dir = DATA_DIR / "versions"
+    versions_dir.mkdir(exist_ok=True)
+    archive = versions_dir / f"{new_ver}.json"
+    shutil.copy(latest, archive)
+    click.echo(f"Archived → {archive}")
+
+    # Count changes vs previous version
+    prev_path = DATA_DIR / "registry.json"
+    classes_added = nc  # simplified — full diff would compare to previous snapshot
+
+    # Append to provenance.json
+    prov_entry = {
+        "registry_version": new_ver,
+        "previous_version": current,
+        "timestamp":        now_iso(),
+        "bump":             bump,
+        "trigger":          "issue" if issue else "manual",
+        "issue_number":     issue,
+        "agent":            agent,
+        "schema_ingested":  schema,
+        "stats": {
+            "classes_total":  nc,
+            "sources_total":  ns,
+        },
+        "archive_path": f"data/versions/{new_ver}.json",
+    }
+    append_provenance(prov_entry)
+    click.echo(f"Appended provenance entry for v{new_ver}")
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 **A shared vocabulary for neuroscience data.**
 
-🌐 **Live site:** [sensein.group/NeuroRegistry](https://sensein.group/NeuroGhost/)
+🌐 **Live site:** [sensein.group/NeuroGhost](https://sensein.group/NeuroGhost/)
 
 ---
 

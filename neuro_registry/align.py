@@ -243,11 +243,14 @@ def write_alignment(conn, uid_a: str, uid_b: str, distance: float,
 @click.option("--source",           default=None,
               help="Align this source against all others.")
 @click.option("--db",               default=DB_PATH, show_default=True)
-@click.option("--threshold",        default=0.7, show_default=True, type=float,
+@click.option("--threshold",        default=0.5, show_default=True, type=float,
               help="Only write edges with distance <= threshold.")
+@click.option("--min-signal",       default=0.4, show_default=True, type=float,
+              help="Skip pairs where no single subscore exceeds this. "
+                   "Prevents storing 'both are 0' non-matches.")
 @click.option("--registry-version", default="", help="Registry version to stamp on edges.")
 @click.option("--dry-run",          is_flag=True)
-def cli(source, db, threshold, registry_version, dry_run):
+def cli(source, db, threshold, min_signal, registry_version, dry_run):
     """Compute semantic alignment between SchemaClass nodes across sources."""
     conn    = get_connection(db)
     classes = load_classes(conn)
@@ -269,7 +272,15 @@ def cli(source, db, threshold, registry_version, dry_run):
     for a, b in pairs_across_sources(classes, source):
         distance, method, subscores = compute_distance(a, b)
 
+        # Skip pairs above distance threshold
         if distance > threshold:
+            skipped += 1
+            continue
+
+        # Skip pairs with no meaningful signal in any dimension
+        max_signal = max(subscores["iri"], subscores["name"],
+                         subscores["desc"], subscores["slot"])
+        if max_signal < min_signal:
             skipped += 1
             continue
 

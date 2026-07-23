@@ -96,7 +96,19 @@ def convert() -> dict:
             for doc in docs:
                 if not isinstance(doc, dict):
                     continue
-                for ndt in (doc.get("neurodata_types") or [doc]):
+                # NWB YAML: each doc is a namespace or a list of type defs.
+                # Type defs live under doc["groups"] or doc["datasets"] as a flat list,
+                # or the doc itself has neurodata_type_def at the top level.
+                candidates = []
+                if doc.get("neurodata_type_def"):
+                    candidates = [doc]
+                elif doc.get("groups"):
+                    candidates = [g for g in doc["groups"] if isinstance(g, dict)]
+                elif doc.get("datasets"):
+                    candidates = [d for d in doc["datasets"] if isinstance(d, dict)]
+                else:
+                    candidates = [doc]
+                for ndt in candidates:
                     if not isinstance(ndt, dict):
                         continue
                     name = ndt.get("neurodata_type_def")

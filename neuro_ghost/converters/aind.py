@@ -1,31 +1,30 @@
 """
-converters/aind.py — Fetch AIND schemas from sensein/undata and convert to LinkML
+converters/aind.py — Convert AIND schemas to LinkML
 ----------------------------------------------------------------------------------
-Rather than fighting with the AIND GitHub API (which reorganizes frequently),
-we pull from sensein/undata which already has AIND schemas extracted and
-content-addressed at:
-  https://github.com/sensein/undata/tree/main/backend/seed/schemas
+Primary source is the official `aind-data-schema` PyPI package. Every model in
+`aind_data_schema.core` is a Pydantic model; `model_json_schema()` yields a full
+JSON Schema with a `properties` block plus a `$defs` section describing every
+nested model. We turn the root model and each `$def` into a LinkML class so no
+field is left behind.
 
-These are AIND-format YAML files with content-addressed names like:
-  subject_groupstate_c3111258d67b.yaml
-  bloodrecording_f41aac8cd524.yaml
-  epocheddata_de2698b4844e.yaml
-  etc.
+Why PyPI and not the GitHub API: the AIND GitHub layout reorganizes frequently.
 
-Each file describes one AIND schema type with its fields, types, and
-constraints. We convert each to a LinkML class + slots.
-
-Falls back to PyPI aind-data-schema if the undata repo is unavailable,
-then falls back to hardcoded core types if PyPI also fails.
+Fallbacks, in order:
+  1. sensein/undata content-addressed schemas (backend/seed). Each schema file
+     lists property hashes that resolve against backend/seed/elements. This seed
+     is a *partial* snapshot — unresolved hashes are skipped — so it is only a
+     fallback when PyPI is unavailable.
+  2. A hardcoded core (Subject / Session / Instrument) as a last resort.
 """
 
 from __future__ import annotations
-import httpx, yaml, json, re
+import httpx, yaml, re
 from pathlib import Path
 
-UNDATA_API = "https://api.github.com/repos/sensein/undata/contents/backend/seed/schemas"
-UNDATA_RAW = "https://raw.githubusercontent.com/sensein/undata/main/backend/seed/schemas"
+UNDATA_SCHEMAS_API  = "https://api.github.com/repos/sensein/undata/contents/backend/seed/schemas"
+UNDATA_ELEMENTS_API = "https://api.github.com/repos/sensein/undata/contents/backend/seed/elements"
 OUT_PATH   = Path("schemas/aind.yml")
+DOCS       = "https://aind-data-schema.readthedocs.io/en/stable/"
 
 JSON_TYPE_MAP = {
     "string":   "xsd:string",
@@ -35,6 +34,14 @@ JSON_TYPE_MAP = {
     "array":    "xsd:string",
     "object":   "xsd:string",
     "null":     "xsd:string",
+}
+
+# JSON Schema 'format' hints that map to richer LinkML primitives.
+FORMAT_MAP = {
+    "date":      "date",
+    "date-time": "datetime",
+    "time":      "datetime",
+    "uri":       "uri",
 }
 
 
@@ -52,159 +59,234 @@ def fetch_yaml(url: str) -> dict:
 
 
 def clean(s: str) -> str:
-    return re.sub(r'[^a-zA-Z0-9_]', '_', s).strip('_')
+    return re.sub(r'[^a-zA-Z0-9_]', '_', str(s)).strip('_')
 
 
-def class_name_from_filename(filename: str) -> str:
+def _units(desc: str) -> str:
+    m = re.search(r'\(units?:\s*([^)]+)\)', desc, re.IGNORECASE)
+    return m.group(1).strip() if m else ""
+
+
+def json_range(pbody: dict) -> tuple[str, bool]:
     """
-    Convert content-addressed filename to a clean class name.
-    e.g. "subject_groupstate_c3111258d67b.yaml" → "SubjectGroupState"
-         "bloodrecording_f41aac8cd524.yaml" → "BloodRecording"
+    Resolve a JSON-Schema property body to a (linkml_range, multivalued) pair.
+
+    Handles: plain type, list-of-types, anyOf/oneOf unions, array items, and
+    JSON Schema 'format' hints (date/date-time). Enums and $ref/allOf
+    references degrade to string (their structure is captured as separate
+    classes via $defs), which matches how the sibling converters model ranges.
     """
-    # Strip extension and trailing hash (last token after final underscore
-    # that looks like a hex hash)
-    stem = filename.replace(".yaml", "").replace(".yml", "")
-    parts = stem.split("_")
-    # Remove trailing hash token (short hex string)
-    if parts and re.match(r'^[0-9a-f]{8,}$', parts[-1].lower()):
-        parts = parts[:-1]
-    # CamelCase
-    return "".join(p.capitalize() for p in parts if p)
+    t = pbody.get("type")
+    fmt = pbody.get("format")
+
+    # Union types: pick the first concrete (non-null) branch.
+    if t is None:
+        for key in ("anyOf", "oneOf"):
+            for opt in pbody.get(key) or []:
+                if isinstance(opt, dict) and opt.get("type") and opt["type"] != "null":
+                    t = opt["type"]
+                    fmt = fmt or opt.get("format")
+                    if t == "array":
+                        pbody = opt  # so items lookup below sees the array body
+                    break
+            if t:
+                break
+
+    if isinstance(t, list):
+        t = next((x for x in t if x != "null"), "string")
+
+    if t == "array":
+        items = pbody.get("items") or {}
+        item_t = items.get("type") if isinstance(items, dict) else None
+        item_fmt = items.get("format") if isinstance(items, dict) else None
+        rng = (FORMAT_MAP.get(str(item_fmt))
+               or JSON_TYPE_MAP.get(str(item_t).lower(), "xsd:string").replace("xsd:", ""))
+        return rng, True
+
+    rng = FORMAT_MAP.get(str(fmt)) or JSON_TYPE_MAP.get(str(t).lower(), "xsd:string").replace("xsd:", "")
+    return rng, False
 
 
-def extract_from_aind_yaml(cls_name: str, data: dict) -> tuple[dict, dict]:
+def add_class_from_json(cls_name: str, body: dict,
+                        classes: dict, slots: dict) -> None:
+    """Add one LinkML class (+ its slots) from a JSON-Schema object body."""
+    props = body.get("properties")
+    if not isinstance(props, dict):
+        return
+    required = set(body.get("required") or [])
+    slot_names = []
+    for prop, pbody in props.items():
+        if not isinstance(pbody, dict):
+            continue
+        rng, multivalued = json_range(pbody)
+        desc = str(pbody.get("description", pbody.get("title", "")) or "")
+        units = _units(desc)
+        key = f"{cls_name}__{prop}"
+        slots[key] = {
+            "description": f"{desc} (units: {units})" if units else desc,
+            "slot_uri":    f"{DOCS}#{prop}",
+            "range":       rng,
+            "multivalued": multivalued,
+            "required":    prop in required,
+        }
+        slot_names.append(key)
+    classes[cls_name] = {
+        "description": str(body.get("description", body.get("title", f"AIND {cls_name}")) or f"AIND {cls_name}"),
+        "class_uri":   f"{DOCS}#{cls_name}",
+        "slots":       slot_names,
+    }
+
+
+def extract_json_schema(root_name: str, schema: dict) -> tuple[dict, dict]:
     """
-    Extract a class and its slots from an AIND YAML schema file.
+    Convert a Pydantic/JSON-Schema document into LinkML classes + slots.
 
-    AIND YAML schema files use a JSON-Schema-like format with:
-      properties: {field_name: {type, description, ...}}
-      required: [field_name, ...]
-    Or they may be flat dicts with field definitions.
+    The root model becomes one class; every entry in `$defs`/`definitions`
+    (nested models, enums-with-properties) becomes its own class keyed by its
+    definition name so shared defs dedupe naturally across models.
     """
     classes: dict = {}
     slots:   dict = {}
-
-    # Handle JSON Schema style
-    if "properties" in data:
-        required = set(data.get("required") or [])
-        slot_names = []
-        for prop, pbody in data["properties"].items():
-            if not isinstance(pbody, dict):
-                continue
-            raw_type = pbody.get("type", "string")
-            if isinstance(raw_type, list):
-                raw_type = next((t for t in raw_type if t != "null"), "string")
-            xsd = JSON_TYPE_MAP.get(str(raw_type).lower(), "xsd:string")
-            # Extract units from description or title
-            desc = pbody.get("description", pbody.get("title", ""))
-            units = ""
-            m = re.search(r'\(units?:\s*([^)]+)\)', desc, re.IGNORECASE)
-            if m:
-                units = m.group(1).strip()
-            key = f"{cls_name}__{prop}"
-            slots[key] = {
-                "description": desc,
-                "slot_uri":    f"https://aind-data-schema.readthedocs.io/en/stable/#{prop}",
-                "range":       xsd.replace("xsd:", ""),
-                "multivalued": raw_type == "array",
-                "required":    prop in required,
-            }
-            if units:
-                slots[key]["description"] = f"{desc} (units: {units})"
-            slot_names.append(key)
-        if slot_names:
-            classes[cls_name] = {
-                "description": data.get("description", data.get("title", f"AIND {cls_name}")),
-                "class_uri":   f"https://aind-data-schema.readthedocs.io/en/stable/#{cls_name}",
-                "slots":       slot_names,
-            }
-        # Recurse $defs
-        for d_name, d_body in (data.get("$defs") or data.get("definitions") or {}).items():
-            sub_name = clean(f"{cls_name}_{d_name}")
-            sub_cls, sub_slt = extract_from_aind_yaml(sub_name, d_body)
-            classes.update(sub_cls)
-            slots.update(sub_slt)
-
-    # Handle flat AIND format: top-level keys are field names with type info
-    elif any(isinstance(v, dict) and "type" in v for v in data.values()):
-        slot_names = []
-        for field, fdef in data.items():
-            if not isinstance(fdef, dict) or field.startswith("_"):
-                continue
-            raw_type = fdef.get("type", "string")
-            xsd = JSON_TYPE_MAP.get(str(raw_type).lower(), "xsd:string")
-            key = f"{cls_name}__{field}"
-            slots[key] = {
-                "description": fdef.get("description", ""),
-                "slot_uri":    f"https://aind-data-schema.readthedocs.io/en/stable/#{field}",
-                "range":       xsd.replace("xsd:", ""),
-                "multivalued": False,
-                "required":    fdef.get("required", False),
-            }
-            slot_names.append(key)
-        if slot_names:
-            classes[cls_name] = {
-                "description": f"AIND {cls_name}",
-                "class_uri":   f"https://aind-data-schema.readthedocs.io/en/stable/#{cls_name}",
-                "slots":       slot_names,
-            }
-
+    add_class_from_json(root_name, schema, classes, slots)
+    for d_name, d_body in (schema.get("$defs") or schema.get("definitions") or {}).items():
+        if isinstance(d_body, dict) and "properties" in d_body:
+            add_class_from_json(clean(d_name), d_body, classes, slots)
     return classes, slots
 
 
-def convert_from_undata() -> tuple[dict, dict]:
-    """Pull AIND schemas from sensein/undata backend/seed/schemas/."""
-    print("[aind] Fetching from sensein/undata…")
+def convert_from_pypi() -> tuple[dict, dict]:
+    """
+    Generate schemas from every model in the aind-data-schema core package.
+
+    Enumerating models dynamically keeps us robust to the package reorganizing
+    its module layout (an earlier hardcoded `import … session` broke exactly
+    this way).
+    """
+    import subprocess, sys, importlib, pkgutil, inspect
+
+    def _load_core():
+        import aind_data_schema.core as core
+        return core
+
+    try:
+        core = _load_core()
+    except Exception:
+        print("[aind] Installing aind-data-schema…")
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "aind-data-schema", "-q"],
+            capture_output=True,
+        )
+        importlib.invalidate_caches()
+        core = _load_core()
+
+    from pydantic import BaseModel
+
     all_classes: dict = {}
     all_slots:   dict = {}
+    seen: set = set()
 
-    listing = fetch_json(UNDATA_API)
-    if not isinstance(listing, list):
-        raise ValueError("Unexpected API response")
-
-    yaml_files = [f for f in listing
-                  if isinstance(f, dict) and
-                  f.get("name", "").endswith((".yaml", ".yml"))]
-
-    print(f"[aind]   Found {len(yaml_files)} schema files")
-
-    for f in yaml_files:
-        filename  = f["name"]
-        cls_name  = class_name_from_filename(filename)
-        raw_url   = f.get("download_url") or f"{UNDATA_RAW}/{filename}"
-        try:
-            data = fetch_yaml(raw_url)
-            cls, slt = extract_from_aind_yaml(cls_name, data)
+    for mod_info in pkgutil.iter_modules(core.__path__):
+        mod = importlib.import_module(f"aind_data_schema.core.{mod_info.name}")
+        for name, obj in inspect.getmembers(mod, inspect.isclass):
+            if not (issubclass(obj, BaseModel) and obj.__module__ == mod.__name__):
+                continue
+            if name in seen:
+                continue
+            seen.add(name)
+            try:
+                schema = obj.model_json_schema()
+            except Exception as e:
+                print(f"[aind]   WARNING: {name} — {e}")
+                continue
+            cls, slt = extract_json_schema(name, schema)
             all_classes.update(cls)
             all_slots.update(slt)
-        except Exception as e:
-            print(f"[aind]   WARNING: {filename} — {e}")
 
-    print(f"[aind]   Loaded {len(all_classes)} classes from undata")
+    print(f"[aind]   Loaded {len(all_classes)} classes, "
+          f"{len(all_slots)} slots from PyPI")
     return all_classes, all_slots
 
 
-def convert_from_pypi() -> tuple[dict, dict]:
-    """Fall back to generating schemas from the aind-data-schema PyPI package."""
-    import subprocess, sys
-    print("[aind] Trying pip install aind-data-schema…")
-    subprocess.run(
-        [sys.executable, "-m", "pip", "install",
-         "aind-data-schema", "--break-system-packages", "-q"],
-        capture_output=True
-    )
-    from aind_data_schema.core.subject import Subject
-    from aind_data_schema.core.session import Session
-    from aind_data_schema.core.instrument import Instrument
+def convert_from_undata() -> tuple[dict, dict]:
+    """
+    Pull AIND schemas from sensein/undata (content-addressed).
+
+    Each schemas/*.yaml file lists `semantic.properties` as sha256 hashes that
+    reference elements/*.yaml (one property definition each). We build a map of
+    {sha256 → element} and resolve. The seed is partial, so hashes with no
+    corresponding element are skipped.
+    """
+    print("[aind] Fetching from sensein/undata…")
+
+    def _list_yaml(api: str) -> list[dict]:
+        out, page = [], 1
+        while True:
+            batch = fetch_json(f"{api}?per_page=100&page={page}")
+            if not isinstance(batch, list) or not batch:
+                break
+            out += [f for f in batch
+                    if isinstance(f, dict) and f.get("name", "").endswith((".yaml", ".yml"))]
+            if len(batch) < 100:
+                break
+            page += 1
+        return out
+
+    # Build element lookup by sha256.
+    element_map: dict = {}
+    for f in _list_yaml(UNDATA_ELEMENTS_API):
+        try:
+            data = fetch_yaml(f.get("download_url"))
+            if isinstance(data, dict) and data.get("sha256"):
+                element_map[data["sha256"]] = data
+        except Exception:
+            continue
+    print(f"[aind]   Indexed {len(element_map)} elements")
+
     all_classes: dict = {}
     all_slots:   dict = {}
-    for model_cls in [Subject, Session, Instrument]:
-        name = model_cls.__name__
-        schema = model_cls.model_json_schema()
-        cls, slt = extract_from_aind_yaml(name, schema)
-        all_classes.update(cls)
-        all_slots.update(slt)
-    print(f"[aind]   Loaded {len(all_classes)} classes from PyPI")
+    resolved = missing = 0
+
+    for f in _list_yaml(UNDATA_SCHEMAS_API):
+        try:
+            data = fetch_yaml(f.get("download_url"))
+        except Exception as e:
+            print(f"[aind]   WARNING: {f.get('name')} — {e}")
+            continue
+        prov = (data.get("provenance") or [{}])[0]
+        cls_name = clean(prov.get("class") or prov.get("name") or f["name"].split("_")[0]) \
+            .replace(" ", "")
+        cls_name = "".join(p for p in re.split(r'[_\s]+', cls_name)) or "AindClass"
+        prop_hashes = ((data.get("semantic") or {}).get("properties")) or []
+
+        slot_names = []
+        for phash in prop_hashes:
+            el = element_map.get(phash)
+            if not el:
+                missing += 1
+                continue
+            resolved += 1
+            eprov = (el.get("provenance") or [{}])[0]
+            field = clean(eprov.get("name") or phash[:12])
+            sem = el.get("semantic") or {}
+            dtype = str(sem.get("data_type", "string")).lower()
+            key = f"{cls_name}__{field}"
+            all_slots[key] = {
+                "description": str(eprov.get("description", "") or ""),
+                "slot_uri":    f"{DOCS}#{field}",
+                "range":       JSON_TYPE_MAP.get(dtype, "xsd:string").replace("xsd:", ""),
+                "multivalued": dtype == "array",
+            }
+            slot_names.append(key)
+
+        if slot_names:
+            all_classes[cls_name] = {
+                "description": str(prov.get("description") or f"AIND {cls_name}"),
+                "class_uri":   f"{DOCS}#{cls_name}",
+                "slots":       slot_names,
+            }
+
+    print(f"[aind]   Loaded {len(all_classes)} classes from undata "
+          f"({resolved} properties resolved, {missing} unresolved/skipped)")
     return all_classes, all_slots
 
 
@@ -212,34 +294,34 @@ def hardcoded_fallback() -> tuple[dict, dict]:
     classes = {
         "Subject": {
             "description": "AIND subject metadata.",
-            "class_uri": "https://aind-data-schema.readthedocs.io/en/stable/#Subject",
-            "slots": ["subject__subject_id","subject__sex","subject__date_of_birth",
-                      "subject__species","subject__genotype"],
+            "class_uri": f"{DOCS}#Subject",
+            "slots": ["subject__subject_id", "subject__sex", "subject__date_of_birth",
+                      "subject__species", "subject__genotype"],
         },
         "Session": {
             "description": "AIND acquisition session.",
-            "class_uri": "https://aind-data-schema.readthedocs.io/en/stable/#Session",
-            "slots": ["session__session_start_time","session__session_end_time",
-                      "session__experimenter_full_name","session__rig_id"],
+            "class_uri": f"{DOCS}#Session",
+            "slots": ["session__session_start_time", "session__session_end_time",
+                      "session__experimenter_full_name", "session__rig_id"],
         },
         "Instrument": {
             "description": "AIND instrument / rig.",
-            "class_uri": "https://aind-data-schema.readthedocs.io/en/stable/#Instrument",
-            "slots": ["instrument__instrument_id","instrument__instrument_type"],
+            "class_uri": f"{DOCS}#Instrument",
+            "slots": ["instrument__instrument_id", "instrument__instrument_type"],
         },
     }
     slots = {
-        "subject__subject_id":       {"description":"Subject ID","range":"string","slot_uri":"schema:identifier"},
-        "subject__sex":              {"description":"Biological sex","range":"string"},
-        "subject__date_of_birth":    {"description":"Date of birth","range":"date"},
-        "subject__species":          {"description":"Species","range":"string"},
-        "subject__genotype":         {"description":"Genotype","range":"string"},
-        "session__session_start_time":     {"description":"Session start","range":"datetime"},
-        "session__session_end_time":       {"description":"Session end","range":"datetime"},
-        "session__experimenter_full_name": {"description":"Experimenter name","range":"string","multivalued":True},
-        "session__rig_id":                 {"description":"Rig ID","range":"string"},
-        "instrument__instrument_id":       {"description":"Instrument ID","range":"string"},
-        "instrument__instrument_type":     {"description":"Instrument type","range":"string"},
+        "subject__subject_id":       {"description": "Subject ID", "range": "string", "slot_uri": "schema:identifier"},
+        "subject__sex":              {"description": "Biological sex", "range": "string"},
+        "subject__date_of_birth":    {"description": "Date of birth", "range": "date"},
+        "subject__species":          {"description": "Species", "range": "string"},
+        "subject__genotype":         {"description": "Genotype", "range": "string"},
+        "session__session_start_time":     {"description": "Session start", "range": "datetime"},
+        "session__session_end_time":       {"description": "Session end", "range": "datetime"},
+        "session__experimenter_full_name": {"description": "Experimenter name", "range": "string", "multivalued": True},
+        "session__rig_id":                 {"description": "Rig ID", "range": "string"},
+        "instrument__instrument_id":       {"description": "Instrument ID", "range": "string"},
+        "instrument__instrument_type":     {"description": "Instrument type", "range": "string"},
     }
     return classes, slots
 
@@ -247,26 +329,26 @@ def hardcoded_fallback() -> tuple[dict, dict]:
 def convert() -> dict:
     all_classes, all_slots = {}, {}
 
-    # Try undata first (fastest, most complete)
+    # PyPI is the authoritative, complete source.
     try:
-        all_classes, all_slots = convert_from_undata()
+        all_classes, all_slots = convert_from_pypi()
     except Exception as e:
-        print(f"[aind]   undata fetch failed — {e}")
+        print(f"[aind]   PyPI conversion failed — {e}")
 
-    # Fall back to PyPI
+    # Fall back to the (partial) undata seed.
     if not all_classes:
         try:
-            all_classes, all_slots = convert_from_pypi()
+            all_classes, all_slots = convert_from_undata()
         except Exception as e:
-            print(f"[aind]   PyPI fallback failed — {e}")
+            print(f"[aind]   undata fetch failed — {e}")
 
-    # Last resort: hardcoded
+    # Last resort: hardcoded core.
     if not all_classes:
         print("[aind]   Using hardcoded fallback")
         all_classes, all_slots = hardcoded_fallback()
 
     return {
-        "id":      "https://aind-data-schema.readthedocs.io/en/stable/",
+        "id":      DOCS,
         "name":    "aind",
         "title":   "AIND Data Schema",
         "description": "Allen Institute for Neural Dynamics data schema.",
@@ -275,7 +357,7 @@ def convert() -> dict:
         "prefixes": {
             "linkml": "https://w3id.org/linkml/",
             "schema": "https://schema.org/",
-            "aind":   "https://aind-data-schema.readthedocs.io/en/stable/",
+            "aind":   DOCS,
             "xsd":    "http://www.w3.org/2001/XMLSchema#",
         },
         "default_prefix": "aind",

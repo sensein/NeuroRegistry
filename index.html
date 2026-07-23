@@ -457,7 +457,22 @@ async function boot(){
     const [rr,pr]=await Promise.allSettled([fetch(REGISTRY_JSON),fetch(PROVENANCE_JSON)]);
     if(rr.status==="fulfilled"&&rr.value.ok){
       const d=await rr.value.json();
-      allClasses=d.classes||[];allSources=d.sources||[];
+      // Normalize class/property fields across registry export formats:
+      // the meta-model export uses hash_id / value_range / is_abstract, while
+      // this UI reads uid / datatype / version. Map new→old, keeping old as-is.
+      allClasses=(d.classes||[]).map(c=>({
+        ...c,
+        uid: c.uid||c.hash_id,
+        version: c.version||c.registry_version||"",
+        abstract: c.abstract??c.is_abstract,
+        alignments: c.alignments||[],
+        properties: (c.properties||[]).map(p=>({
+          ...p,
+          uid: p.uid||p.hash_id,
+          datatype: p.datatype||p.value_range||"",
+        })),
+      }));
+      allSources=d.sources||[];
       classHistories=d.class_histories||{};
       propHistories=d.property_histories||{};
       schemaHistories=d.schema_histories||{};

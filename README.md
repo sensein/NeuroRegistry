@@ -98,6 +98,129 @@ the entire registry, or a CSV diff between two schemas.
 
 ---
 
+## Read API
+
+The registry data is served as static JSON from GitHub Pages — no API key, no
+rate limits, CORS open by default. Every GET request is just a direct file
+fetch.
+
+**Base URL:** `https://sensein.group/NeuroGhost`
+
+---
+
+### `GET /data/registry.json`
+
+The full registry: all sources, classes, properties, and cross-schema
+alignments at the current version.
+
+```bash
+curl https://sensein.group/NeuroGhost/data/registry.json
+```
+
+**Response shape:**
+```json
+{
+  "registry_version": "1.4.0",
+  "generated_at": "2026-07-23T12:40:24Z",
+  "sources": [
+    { "label": "bbqs", "version": "1.0.0", "class_count": 29 }
+  ],
+  "classes": [
+    {
+      "uid": "...",
+      "iri": "https://registry.sensein.io/obj/Person",
+      "name": "Person",
+      "definition": "A human being.",
+      "abstract": false,
+      "source": "bbqs",
+      "properties": [
+        {
+          "uid": "...",
+          "name": "age",
+          "definition": "Age in years.",
+          "datatype": "xsd:integer",
+          "multivalued": false,
+          "required": false,
+          "source": "bbqs"
+        }
+      ],
+      "alignments": [
+        {
+          "target_uid": "...",
+          "target_name": "Subject",
+          "target_source": "nwb",
+          "distance": 0.31,
+          "method": "composite",
+          "scores": { "iri": 0.0, "name": 0.28, "desc": 0.44, "slot": 0.0 }
+        }
+      ]
+    }
+  ]
+}
+```
+
+`distance` is between **0.0** (identical) and **1.0** (unrelated).
+
+---
+
+### `GET /data/versions/{version}.json`
+
+A frozen snapshot of the registry at a specific version. Snapshots are
+permanent and never change.
+
+```bash
+curl https://sensein.group/NeuroGhost/data/versions/1.2.0.json
+```
+
+Same shape as `registry.json`. Available versions are listed in the
+`registry_version` field of the current registry file.
+
+---
+
+### `GET /data/provenance.json`
+
+A timestamped changelog — every schema ingested, who submitted it, and which
+registry version it produced.
+
+```bash
+curl https://sensein.group/NeuroGhost/data/provenance.json
+```
+
+---
+
+### Filtering in the browser or client
+
+Because these are static files there are no server-side query parameters.
+Filter in your client:
+
+```js
+const reg = await fetch("https://sensein.group/NeuroGhost/data/registry.json")
+              .then(r => r.json());
+
+// All classes from a specific schema
+const bbqs = reg.classes.filter(c => c.source === "bbqs");
+
+// Classes with a close alignment to something (distance < 0.4)
+const aligned = reg.classes.flatMap(c =>
+  c.alignments
+    .filter(a => a.distance < 0.4)
+    .map(a => ({ from: c.name, to: a.target_name, distance: a.distance }))
+);
+```
+
+---
+
+### Transform API (future work)
+
+Converting data from one schema's format to another (e.g. BBQS → NWB) requires
+running code against the alignment map, which a static file API cannot do.
+This will need a lightweight compute layer — likely a
+[Cloudflare Worker](https://workers.cloudflare.com/) or similar serverless
+function that reads the static registry JSON and applies a field-mapping based
+on the alignment graph. Not yet implemented.
+
+---
+
 ## Adding your own schema
 
 The easiest way, no setup required:

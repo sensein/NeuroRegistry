@@ -4,25 +4,41 @@ converters/bids.py — Fetch BIDS schema and convert to LinkML
 Source: https://github.com/bids-standard/bids-specification
         src/schema/objects/  (YAML files per object type)
 
-BIDS schema is split into multiple YAML files:
-  objects/columns.yaml    → data dictionary columns (→ SchemaProperty)
-  objects/entities.yaml   → entities like sub, ses, task (→ SchemaProperty)
-  objects/datatypes.yaml  → imaging datatypes (→ SchemaClass)
-  objects/suffixes.yaml   → file suffixes (→ SchemaClass)
-  objects/metadata.yaml   → sidecar metadata fields (→ SchemaProperty)
+BIDS schema is split into multiple YAML files. We ingest every object
+group so that no schema element is dropped:
+  objects/metadata.yaml   → sidecar metadata fields (→ slots on BIDSMetadata)
+  objects/columns.yaml    → data dictionary columns (→ slots on BIDSColumn)
+  objects/entities.yaml   → entities like sub, ses, task (→ slots on BIDSEntity)
+  objects/datatypes.yaml  → imaging datatypes (→ one SchemaClass each)
+  objects/suffixes.yaml   → file suffixes (→ one SchemaClass each)
+
+Every extracted slot is attached to a class so the downstream ingester
+(ingest_linkml.py, which only ingests slots referenced by a class) picks
+all of them up — earlier versions capped a single class at 60 slots and
+dropped hundreds of fields on the floor.
 """
 
 from __future__ import annotations
+import re
 import httpx, yaml
 from pathlib import Path
 
 GITHUB_RAW = "https://raw.githubusercontent.com/bids-standard/bids-specification/master/src/schema/objects"
 OUT_PATH   = Path("schemas/bids.yml")
 
-FILES = {
-    "columns":  f"{GITHUB_RAW}/columns.yaml",
-    "entities": f"{GITHUB_RAW}/entities.yaml",
-    "metadata": f"{GITHUB_RAW}/metadata.yaml",
+# Object files whose entries become slots (properties), keyed by the class
+# that will own them and a human description of that class.
+SLOT_FILES = {
+    "metadata": ("BIDSMetadata", "BIDS sidecar JSON metadata fields."),
+    "columns":  ("BIDSColumn",   "BIDS tabular (TSV) data-dictionary columns."),
+    "entities": ("BIDSEntity",   "BIDS filename entities (sub, ses, task, …)."),
+}
+
+# Object files whose entries are controlled-vocabulary terms; each entry
+# becomes its own SchemaClass.
+CLASS_FILES = {
+    "datatypes": "BIDS imaging datatype.",
+    "suffixes":  "BIDS file suffix.",
 }
 
 XSD_TYPE_MAP = {
@@ -34,64 +50,111 @@ XSD_TYPE_MAP = {
     "object":  "xsd:string",
 }
 
+GLOSSARY = "https://bids-specification.readthedocs.io/en/stable/glossary.html"
 
-def fetch(url: str) -> dict:
-    resp = httpx.get(url, timeout=30, follow_redirects=True)
+
+def fetch(name: str) -> dict:
+    resp = httpx.get(f"{GITHUB_RAW}/{name}.yaml", timeout=30, follow_redirects=True)
     resp.raise_for_status()
-    return yaml.safe_load(resp.text)
+    return yaml.safe_load(resp.text) or {}
+
+
+def clean(s: str) -> str:
+    return re.sub(r'[^a-zA-Z0-9_]', '_', str(s)).strip('_')
+
+
+def camel(s: str) -> str:
+    return "".join(p.capitalize() for p in re.split(r'[^a-zA-Z0-9]+', str(s)) if p)
+
+
+def bids_range(defn: dict) -> tuple[str, bool]:
+    """
+    Resolve a BIDS object 'type' to a (linkml_range, multivalued) pair.
+
+    Handles plain types, list-of-types, and anyOf/oneOf unions (falling back
+    to the first non-null option). Defaults to string.
+    """
+    t = defn.get("type")
+    if t is None:
+        for key in ("anyOf", "oneOf"):
+            for opt in defn.get(key) or []:
+                if isinstance(opt, dict) and opt.get("type") and opt["type"] != "null":
+                    t = opt["type"]
+                    break
+            if t:
+                break
+    if isinstance(t, list):
+        t = next((x for x in t if x != "null"), "string")
+    multivalued = (t == "array")
+    xsd = XSD_TYPE_MAP.get(str(t), "xsd:string")
+    return xsd.replace("xsd:", ""), multivalued
 
 
 def convert() -> dict:
     print("[bids] Fetching schema…")
-    classes: dict  = {}
-    slots:   dict  = {}
+    classes: dict = {}
+    slots:   dict = {}
 
-    # Metadata fields → properties
-    try:
-        meta = fetch(FILES["metadata"])
-        for name, defn in (meta or {}).items():
+    # ------------------------------------------------------------------
+    # Property groups: metadata, columns, entities → slots
+    # ------------------------------------------------------------------
+    for group, (cls_name, cls_desc) in SLOT_FILES.items():
+        try:
+            objs = fetch(group)
+        except Exception as e:
+            print(f"[bids]   WARNING: {group} fetch failed — {e}")
+            continue
+
+        slot_names = []
+        for name, defn in (objs or {}).items():
             if not isinstance(defn, dict):
                 continue
-            raw_type = defn.get("type", "string")
-            if isinstance(raw_type, list):
-                raw_type = raw_type[0]
-            xsd = XSD_TYPE_MAP.get(raw_type, "xsd:string")
-            slots[name] = {
-                "description": defn.get("description", ""),
-                "slot_uri":    f"https://bids-specification.readthedocs.io/en/stable/glossary.html#{name}",
-                "range":       xsd.replace("xsd:", ""),
-                "multivalued": raw_type == "array",
+            rng, multivalued = bids_range(defn)
+            key = f"{group}__{name}"          # namespaced to avoid cross-group clashes
+            slots[key] = {
+                "description": str(defn.get("description", "") or "").strip(),
+                # anchor on the real object name so equivalent fields across
+                # groups resolve to the same IRI (and dedupe at ingest time)
+                "slot_uri":    f"{GLOSSARY}#{name}",
+                "range":       rng,
+                "multivalued": multivalued,
             }
-        print(f"[bids]   {len(slots)} metadata slots")
-    except Exception as e:
-        print(f"[bids]   WARNING: metadata fetch failed — {e}")
+            slot_names.append(key)
 
-    # Columns → properties
-    try:
-        cols = fetch(FILES["columns"])
-        for name, defn in (cols or {}).items():
-            if not isinstance(defn, dict) or name in slots:
+        classes[cls_name] = {
+            "description": cls_desc,
+            "class_uri":   "https://bids-specification.readthedocs.io/en/stable/",
+            "slots":       slot_names,
+        }
+        print(f"[bids]   {group}: {len(slot_names)} slots → {cls_name}")
+
+    # ------------------------------------------------------------------
+    # Vocabulary groups: datatypes, suffixes → one class per term
+    # ------------------------------------------------------------------
+    for group, desc in CLASS_FILES.items():
+        try:
+            objs = fetch(group)
+        except Exception as e:
+            print(f"[bids]   WARNING: {group} fetch failed — {e}")
+            continue
+
+        count = 0
+        for name, defn in (objs or {}).items():
+            if not isinstance(defn, dict):
                 continue
-            raw_type = defn.get("type", "string")
-            if isinstance(raw_type, list):
-                raw_type = raw_type[0]
-            xsd = XSD_TYPE_MAP.get(raw_type, "xsd:string")
-            slots[name] = {
-                "description": defn.get("description", ""),
-                "slot_uri":    f"https://bids-specification.readthedocs.io/en/stable/glossary.html#{name}",
-                "range":       xsd.replace("xsd:", ""),
-                "multivalued": False,
+            cls_name = camel(name) or clean(name)
+            if not cls_name or cls_name in classes:
+                continue
+            value = defn.get("value", name)
+            classes[cls_name] = {
+                "description": str(defn.get("description", "") or "").strip() or desc,
+                "class_uri":   f"{GLOSSARY}#{value}",
+                "slots":       [],
             }
-        print(f"[bids]   {len(slots)} total slots after columns")
-    except Exception as e:
-        print(f"[bids]   WARNING: columns fetch failed — {e}")
+            count += 1
+        print(f"[bids]   {group}: {count} classes")
 
-    # Top-level BIDSDataset class that owns all slots
-    classes["BIDSDataset"] = {
-        "description": "A BIDS-compliant dataset.",
-        "class_uri":   "https://bids-specification.readthedocs.io/en/stable/",
-        "slots":       list(slots.keys())[:60],  # cap for manageability
-    }
+    print(f"[bids]   total {len(classes)} classes, {len(slots)} slots")
 
     return {
         "id":      "https://bids-specification.readthedocs.io/en/stable/",

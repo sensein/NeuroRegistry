@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# NeuroGhost — ladybug graph database
+#   Generated artifact: rebuild locally with `python3 neuro_ghost/seed.py`.
+#   The on-disk format is tied to the ladybug version that built it, so it
+#   must not be committed (see version-42 vs 41 conflicts).
+*.lbug
+*.lbug.*

@@ -1,10 +1,10 @@
-# NeuroGhost
+<h1 align='center'>NeuroGhost</p>
 
-**A shared vocabulary for neuroscience data.**
+<h3 align='center'>A shared vocabulary for neuroscience data.</h3>
 
-🌐 **Live site:** [sensein.group/NeuroGhost](https://sensein.group/NeuroGhost/)
+<p align='center'>🌐 **Live site:** [sensein.group/NeuroGhost](https://sensein.group/NeuroGhost/)</p>
 
-<img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/e70a2916-acea-44bf-9f23-537f290d6f92" />
+<p align='center'><img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/e70a2916-acea-44bf-9f23-537f290d6f92" /></p>
 
 ---
 
